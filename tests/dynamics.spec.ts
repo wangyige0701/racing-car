@@ -45,7 +45,7 @@ test("handbrake creates physical sideslip and grip recovers progressively after 
         expect(vehicle.drift.rearGrip).toBeGreaterThan(grip);
         expect(vehicle.drift.rearGrip).toBeLessThan(grip + 0.06);
         for (let frame = 0; frame < 240; frame++) {
-          step(1, { steer: Math.max(-0.65, Math.min(0.65, vehicle.drift.slipAngle * 1.8)) });
+          step(1, { steer: -Math.max(-0.65, Math.min(0.65, vehicle.drift.slipAngle * 1.8)) });
         }
         expect(vehicle.speed).toBeGreaterThan(1);
         expect(vehicle.drift.rearGrip).toBeGreaterThan(0.99);

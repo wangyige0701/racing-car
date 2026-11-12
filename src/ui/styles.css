@@ -879,6 +879,14 @@ footer i {
   }
 }
 @media (max-width: 760px) {
+  .audio-button {
+    order: 5;
+    flex-basis: 100% !important;
+    height: 30px;
+  }
+  footer a {
+    color: #b6cc98;
+  }
   .onboard-view .speedometer {
     width: 118px;
     bottom: 48px;

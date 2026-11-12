@@ -108,7 +108,7 @@ test("a driver using normalized controls can complete the closed track without c
       );
       const angle = Math.atan((2 * 2.64 * Math.sin(error)) / Math.hypot(dx, dz));
       const limit = VEHICLE.maxSteer / (1 + (Math.abs(vehicle.speed) / 15) ** 2);
-      input.steer = Math.max(-1, Math.min(1, angle / limit));
+      input.steer = -Math.max(-1, Math.min(1, angle / limit));
       input.throttle = Math.max(0, Math.min(1, (20 - vehicle.speed) * 0.4));
       input.brake = vehicle.speed > 22 ? 0.15 : 0;
       step(1, input);
@@ -142,7 +142,7 @@ test("the same steering input yaws in opposite directions when reversing", async
         Math.sin(yaw(vehicle.rotation) - before),
         Math.cos(yaw(vehicle.rotation) - before),
       );
-      expect(difference * (reverse ? -1 : 1)).toBeGreaterThan(0.025);
+      expect(difference * (reverse ? 1 : -1)).toBeGreaterThan(0.025);
     } finally {
       physics.dispose();
     }
@@ -179,14 +179,14 @@ test("steering is progressive, turns the chassis, and reset clears motion", asyn
     step(70, { throttle: 1, brake: 0, steer: 0, handbrake: 0 });
     const before = vehicle.rotation.clone();
     step(1, { throttle: 0.4, brake: 0, steer: 1, handbrake: 0 });
-    expect(vehicle.steer).toBeGreaterThan(0);
-    expect(vehicle.steer).toBeLessThan(0.1);
+    expect(vehicle.steer).toBeLessThan(0);
+    expect(vehicle.steer).toBeGreaterThan(-0.1);
     step(45, { throttle: 0.4, brake: 0, steer: 1, handbrake: 0 });
     expect(before.angleTo(vehicle.rotation)).toBeGreaterThan(0.1);
     const steer = vehicle.steer;
     step(1, { throttle: 0, brake: 0, steer: -1, handbrake: 0 });
-    expect(vehicle.steer).toBeGreaterThan(0);
-    expect(vehicle.steer).toBeLessThan(steer);
+    expect(vehicle.steer).toBeLessThan(0);
+    expect(vehicle.steer).toBeGreaterThan(steer);
     vehicle.reset(true);
     expect(vehicle.speed).toBe(0);
     expect(vehicle.body.linvel()).toEqual({ x: 0, y: 0, z: 0 });

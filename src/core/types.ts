@@ -38,6 +38,9 @@ export interface Diagnostics {
   drifting: boolean;
   driftTime: number;
   cameraMode: CameraMode;
+  smokeParticles: number;
+  audioStatus: "locked" | "running" | "suspended" | "unavailable";
+  audioMuted: boolean;
 }
 
 export function initialDiagnostics(): Diagnostics {
@@ -78,5 +81,8 @@ export function initialDiagnostics(): Diagnostics {
     drifting: false,
     driftTime: 0,
     cameraMode: "chase",
+    smokeParticles: 0,
+    audioStatus: "locked",
+    audioMuted: false,
   };
 }

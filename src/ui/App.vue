@@ -71,8 +71,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         ><span class="brand-mark">A</span>APEX<span class="brand-divider"></span
         ><span class="brand-sub">RACING LAB</span></a
       >
-      <span class="project-label">VEHICLE DYNAMICS <b>/</b> 车辆动力学</span>
-      <span class="stage-pill"><i></i> PHASE 03 / 07</span>
+      <span class="project-label">CAR CONCEPT <b>/</b> 左舵驾驶体验</span>
+      <span class="stage-pill"><i></i> APEX / LHD</span>
     </header>
     <main>
       <section class="track-heading">
@@ -85,6 +85,15 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           </p>
         </div>
         <div class="toolbar">
+          <button
+            class="button secondary audio-button"
+            :disabled="!ready"
+            @click="application?.toggleAudio()"
+            :aria-pressed="diagnostics.audioMuted"
+            aria-label="切换静音"
+          >
+            {{ diagnostics.audioMuted ? "已静音" : "音效开启" }}
+          </button>
           <label class="quality-control"
             ><span>画质</span
             ><select
@@ -126,7 +135,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             <span class="live-dot" :class="{ inactive: diagnostics.phase !== 'running' }"></span
             ><span>{{ status }}</span><b>/</b><span class="session-number">SESSION 01</span>
           </div>
-          <span class="prototype-label">开发原型 · 程序化车模</span>
+          <span class="prototype-label">CAR CONCEPT · 左舵</span>
         </div>
 
         <template v-if="ready">
@@ -178,7 +187,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           </div>
 
           <div class="speedometer">
-            <div class="vehicle-name">APEX GT <span>/ P01</span></div>
+            <div class="vehicle-name">APEX <span>/ CAR CONCEPT</span></div>
             <div class="speed-row">
               <div class="gear">
                 <span>GEAR</span
@@ -330,6 +339,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           <div>物理步数 <b data-testid="physics-steps">{{ diagnostics.physicsSteps }}</b></div>
           <div>车轮着地 <b data-testid="grounded">{{ diagnostics.groundedWheels }} / 4</b></div>
           <div>护栏接触 <b data-testid="collisions">{{ diagnostics.collisions }}</b></div>
+          <div>轮胎烟雾 <b data-testid="smoke-count">{{ diagnostics.smokeParticles }}</b></div>
+          <div>音频状态 <b data-testid="audio-state">{{ diagnostics.audioStatus }}</b></div>
           <div>侧滑角 <b data-testid="slip-angle">{{ diagnostics.slipAngle.toFixed(1) }}°</b></div>
           <div>
             后轮抓地
@@ -345,7 +356,16 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
     </main>
     <footer>
       <span>APEX <b>/</b> BUILT FOR THE NEXT CORNER.</span
-      ><span>阶段 03 · 车辆动力学 <i>→</i> 下一阶段：赛道系统</span>
+      ><span
+        >Car Concept · Eric Chadwick / DGG ·
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"
+          >CC BY 4.0</a
+        >
+        ·
+        <a href="./assets/vehicles/car-concept/CREDITS.md" target="_blank" rel="noopener"
+          >模型署名与改动</a
+        ></span
+      >
     </footer>
   </div>
 </template>

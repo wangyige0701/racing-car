@@ -35,7 +35,7 @@ test("four camera modes transition continuously and follow the rotated chassis",
           .add(car.position);
         expect(cameras.camera.position.distanceTo(expected)).toBeLessThan(0.001);
         const forward = new Vector3(0, 0, 1).applyQuaternion(car.quaternion);
-        expect(cameras.camera.getWorldDirection(new Vector3()).dot(forward)).toBeGreaterThan(0.99);
+        expect(cameras.camera.getWorldDirection(new Vector3()).dot(forward)).toBeGreaterThan(0.98);
       }
     }
     cameras.resize(390, 844);

@@ -5,4 +5,5 @@ dist/
 test-results/
 playwright-report/
 *.local
+.asset-cache/
 

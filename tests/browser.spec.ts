@@ -130,7 +130,7 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
   await page.keyboard.down("d");
   await expect
     .poll(async () => Number(await page.getByTestId("map-marker").getAttribute("data-heading")))
-    .toBeGreaterThan(10);
+    .toBeLessThan(-10);
   await page.keyboard.up("d");
   await page.keyboard.up("w");
   await page.screenshot({ path: testInfo.outputPath("desktop.png"), fullPage: true });
@@ -197,16 +197,21 @@ test("handbrake driving and all four views render with no GPU errors", async ({
     .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
     .toBeGreaterThan(65);
   await page.keyboard.up("w");
-  await page.keyboard.down("d");
+  // Turn into the circuit's left bend, leaving room for the slide before the barrier.
+  await page.keyboard.down("a");
   await page.keyboard.down("Space");
   await expect(page.getByTestId("handbrake")).toHaveAttribute("data-value", "1");
   await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "true");
+  await expect
+    .poll(async () => Number(await page.getByTestId("smoke-count").textContent()))
+    .toBeGreaterThan(0);
   await page.screenshot({ path: testInfo.outputPath("drifting.png"), fullPage: true });
   await page.keyboard.up("Space");
-  await page.keyboard.up("d");
+  await page.keyboard.up("a");
   await expect(page.getByTestId("handbrake")).toHaveAttribute("data-value", "0");
   await page.getByRole("button", { name: "重置车辆" }).click();
   await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "false");
+  await expect(page.getByTestId("smoke-count")).toHaveText("0");
   for (const [mode, label] of [
     ["cockpit", "驾驶舱"],
     ["hood", "引擎盖"],

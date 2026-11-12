@@ -19,8 +19,8 @@ export class ChaseCamera {
     this.forward.normalize();
     this.desired
       .copy(car.position)
-      .addScaledVector(this.forward, -7.6 - Math.min(Math.abs(speed) * 0.065, 2.5));
-    this.desired.y += 3.5;
+      .addScaledVector(this.forward, -6.4 - Math.min(Math.abs(speed) * 0.065, 2.5));
+    this.desired.y += 2.65;
     this.target
       .copy(car.position)
       .addScaledVector(this.forward, 3 + Math.min(Math.abs(speed) * 0.08, 3));

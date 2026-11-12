@@ -32,7 +32,7 @@ export class VehiclePhysics {
   private readonly forward = new Vector3();
   private readonly velocity = new Vector3();
   private readonly force = new Vector3();
-  private readonly right = new Vector3();
+  private readonly lateralAxis = new Vector3();
   private readonly up = new Vector3();
   private readonly contact = new Vector3();
   private readonly angularVelocity = new Vector3();
@@ -124,7 +124,7 @@ export class VehiclePhysics {
     this.throttle += (targetThrottle - this.throttle) * (1 - Math.exp(-VEHICLE.throttleRate * dt));
     if (this.brake > 0) this.throttle = 0;
     const steerLimit = VEHICLE.maxSteer / (1 + (Math.abs(this.speed) / 15) ** 2);
-    const targetSteer = Math.max(-1, Math.min(1, input.steer)) * steerLimit;
+    const targetSteer = -Math.max(-1, Math.min(1, input.steer)) * steerLimit;
     this.steer += (targetSteer - this.steer) * (1 - Math.exp(-VEHICLE.steeringRate * dt));
     const speed = Math.abs(this.speed);
     this.drift.updateGrip(dt, this.handbrake, this.throttle, this.steer, this.speed);
@@ -225,8 +225,8 @@ export class VehiclePhysics {
       this.wheelAngles[i] +=
         (this.speed / VEHICLE.wheelRadius) * dt * (i >= 2 ? 1 - this.handbrake : 1);
     }
-    this.right.set(1, 0, 0).applyQuaternion(this.rotation);
-    this.drift.measure(dt, this.speed, this.velocity.dot(this.right), this.groundedWheels);
+    this.lateralAxis.set(1, 0, 0).applyQuaternion(this.rotation);
+    this.drift.measure(dt, this.speed, this.velocity.dot(this.lateralAxis), this.groundedWheels);
   }
 
   private readPose(): void {

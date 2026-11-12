@@ -5,6 +5,8 @@ import { Graphics } from "../rendering/Renderer";
 import { DrivingScene } from "../rendering/DrivingScene";
 import { PhysicsWorld } from "../physics/PhysicsWorld";
 import { VehiclePhysics } from "../vehicle/VehiclePhysics";
+import { VehicleVisual } from "../vehicle/VehicleVisual";
+import { VehicleAudio } from "../audio/VehicleAudio";
 import { Track } from "../track/Track";
 import { InputManager } from "../input/InputManager";
 import type { TouchControl } from "../input/InputManager";
@@ -17,6 +19,7 @@ export class GameApplication {
   private physics?: PhysicsWorld;
   private vehicle?: VehiclePhysics;
   private input?: InputManager;
+  private audio?: VehicleAudio;
   private readonly idleInput = emptyInput();
   private elapsed = 0;
   private observer?: ResizeObserver;
@@ -67,7 +70,10 @@ export class GameApplication {
       this.diagnostics.trackLength = track.length;
       this.diagnostics.mapPoints = track.samples.map((s) => `${s.x},${-s.z}`).join(" ");
       this.elapsed = 0;
-      this.scene = new DrivingScene(track);
+      this.diagnostics.message = "正在加载 GLB 赛车与左舵驾驶舱";
+      this.emit();
+      const visual = await VehicleVisual.load(signal);
+      this.scene = new DrivingScene(track, visual);
       this.scene.update(this.vehicle, 1, 0, physics, true);
       this.host.append(graphics.renderer.domElement);
       this.resize();
@@ -84,6 +90,8 @@ export class GameApplication {
         this.pauseForFocus,
         () => this.cycleCamera(),
       );
+      this.audio = new VehicleAudio();
+      this.audio.setActive(true);
       this.diagnostics.message = "WebGPU 后端与设备已验证";
       this.diagnostics.loadMs = performance.now() - started;
       this.observer = new ResizeObserver(this.resize);
@@ -108,6 +116,11 @@ export class GameApplication {
         const alpha = this.clock.advance(delta, this.simulate);
         this.scene.update(this.vehicle, alpha, delta, this.physics);
       } else this.scene.updateCamera(this.vehicle, delta, this.physics);
+      this.audio?.update(
+        this.vehicle,
+        this.physics.collisionCount,
+        this.scene.cameras.mode === "cockpit",
+      );
       if (
         Math.min(window.devicePixelRatio || 1, this.pixelRatioCap) !== this.diagnostics.pixelRatio
       )
@@ -173,6 +186,7 @@ export class GameApplication {
     this.diagnostics.phase = this.diagnostics.phase === "running" ? "paused" : "running";
     this.input?.clear();
     if (this.input) this.input.enabled = this.diagnostics.phase === "running";
+    this.audio?.setActive(this.diagnostics.phase === "running");
     this.clock.reset();
     this.previousTime = performance.now();
     this.emit();
@@ -193,11 +207,17 @@ export class GameApplication {
     this.emit();
   }
 
+  toggleAudio(): void {
+    this.audio?.toggleMuted();
+    this.emit();
+  }
+
   resetVehicle(): void {
     if (!this.physics || !this.scene || !this.vehicle) return;
     this.input?.clear();
     this.vehicle.reset();
     this.physics.collisionCount = 0;
+    this.audio?.reset();
     this.elapsed = 0;
     this.scene.update(this.vehicle, 1, 0, this.physics, true);
     this.clock.reset();
@@ -249,6 +269,9 @@ export class GameApplication {
         drifting: v.drift.active,
         driftTime: v.drift.duration,
         cameraMode: this.scene?.cameras.mode ?? "chase",
+        smokeParticles: this.scene?.smoke.count ?? 0,
+        audioStatus: this.audio?.status ?? "locked",
+        audioMuted: this.audio?.muted ?? false,
       });
     }
     if (!this.disposed) this.publish({ ...this.diagnostics });
@@ -263,6 +286,8 @@ export class GameApplication {
     this.clock.reset();
     this.input?.dispose();
     this.input = undefined;
+    this.audio?.dispose();
+    this.audio = undefined;
     this.vehicle = undefined;
     this.physics?.dispose();
     this.physics = undefined;

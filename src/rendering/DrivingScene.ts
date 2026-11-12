@@ -18,8 +18,11 @@ import {
   PlaneGeometry,
   Scene,
   SRGBColorSpace,
-  Texture,
+  DataTexture,
+  EquirectangularReflectionMapping,
 } from "three/webgpu";
+import { disposeObject } from "./dispose";
+import { TireSmoke } from "./TireSmoke";
 import { color, mix, positionWorld, sin } from "three/tsl";
 import { VehicleVisual } from "../vehicle/VehicleVisual";
 import { CameraManager } from "../camera/CameraManager";
@@ -30,13 +33,39 @@ import type { PhysicsWorld } from "../physics/PhysicsWorld";
 export class DrivingScene {
   readonly scene = new Scene();
   readonly cameras = new CameraManager();
-  readonly vehicle = new VehicleVisual();
+  readonly vehicle: VehicleVisual;
+  readonly smoke = new TireSmoke();
+  private readonly environment: DataTexture;
   readonly sun = new DirectionalLight("#fff0c8", 3.6);
   get camera() {
     return this.cameras.camera;
   }
 
-  constructor(track: Track) {
+  constructor(track: Track, vehicle: VehicleVisual) {
+    this.vehicle = vehicle;
+    // Small generated sky reflection, prefiltered by WebGPU for the GLB PBR paint.
+    const pixels = new Uint8Array(256 * 128 * 4);
+    const sky = new Color("#a6c5db"),
+      horizon = new Color("#edf0df"),
+      groundColor = new Color("#526147");
+    const sample = new Color();
+    for (let y = 0; y < 128; y++)
+      for (let x = 0; x < 256; x++) {
+        const t = y / 127;
+        sample
+          .copy(t < 0.5 ? sky : horizon)
+          .lerp(t < 0.5 ? horizon : groundColor, t < 0.5 ? t * 2 : (t - 0.5) * 2);
+        const i = (y * 256 + x) * 4;
+        pixels[i] = sample.r * 255;
+        pixels[i + 1] = sample.g * 255;
+        pixels[i + 2] = sample.b * 255;
+        pixels[i + 3] = 255;
+      }
+    this.environment = new DataTexture(pixels, 256, 128);
+    this.environment.mapping = EquirectangularReflectionMapping;
+    this.environment.needsUpdate = true;
+    this.scene.environment = this.environment;
+    this.scene.environmentIntensity = 0.85;
     this.scene.background = new Color("#b9d4dc");
     this.scene.fog = new Fog("#b9d4dc", 170, 780);
     this.scene.add(new HemisphereLight("#f6f5df", "#4b6345", 2.7));
@@ -51,7 +80,7 @@ export class DrivingScene {
       far: 120,
     });
     this.sun.shadow.normalBias = 0.035;
-    this.scene.add(this.sun, this.sun.target, this.vehicle.root);
+    this.scene.add(this.sun, this.sun.target, this.vehicle.root, this.smoke.root);
 
     const grass = new MeshStandardNodeMaterial({ roughness: 1 });
     grass.colorNode = mix(
@@ -295,6 +324,8 @@ export class DrivingScene {
   ): void {
     this.vehicle.update(vehicle, alpha);
     this.updateCamera(vehicle, dt, physics, snap);
+    if (snap) this.smoke.clear();
+    else this.smoke.update(vehicle, this.camera, dt);
     this.sun.target.position.copy(this.vehicle.root.position);
     this.sun.position.copy(this.vehicle.root.position).add({ x: -25, y: 50, z: -20 });
   }
@@ -308,26 +339,8 @@ export class DrivingScene {
   }
 
   dispose(): void {
-    const geometries = new Set<BufferGeometry>(),
-      materials = new Set<Material>(),
-      textures = new Set<Texture>();
-    this.scene.traverse((object) => {
-      if (object instanceof Mesh) {
-        geometries.add(object.geometry);
-        for (const material of Array.isArray(object.material)
-          ? object.material
-          : [object.material]) {
-          materials.add(material);
-          if (material instanceof MeshStandardNodeMaterial && material.map)
-            textures.add(material.map);
-        }
-      }
-      if (object instanceof InstancedMesh) object.dispose();
-      if (object instanceof DirectionalLight) object.shadow.dispose();
-    });
-    geometries.forEach((g) => g.dispose());
-    materials.forEach((m) => m.dispose());
-    textures.forEach((t) => t.dispose());
-    this.scene.clear();
+    this.scene.environment = null;
+    this.environment.dispose();
+    disposeObject(this.scene);
   }
 }

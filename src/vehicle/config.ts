@@ -1,6 +1,6 @@
-/** SI units. Car local coordinates: +Z forward, +Y up, +X right. */
+/** SI units. Right-handed frame: +Z forward, +Y up, +X driver left. Input +steer means right. */
 export const VEHICLE = {
-  name: "APEX GT / P01",
+  name: "APEX / CAR CONCEPT",
   mass: 1180,
   centerOfMass: { x: 0, y: -0.28, z: 0 },
   inertia: { x: 1800, y: 2100, z: 750 },
