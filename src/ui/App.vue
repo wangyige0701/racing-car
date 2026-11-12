@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { initialDiagnostics } from "../core/types";
+import { CAMERA_LABELS } from "../camera/config";
 import type { GameApplication } from "../core/GameApplication";
 import type { TouchControl } from "../input/InputManager";
 
@@ -70,8 +71,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         ><span class="brand-mark">A</span>APEX<span class="brand-divider"></span
         ><span class="brand-sub">RACING LAB</span></a
       >
-      <span class="project-label">VEHICLE DEVELOPMENT <b>/</b> 车辆原型</span>
-      <span class="stage-pill"><i></i> PHASE 02 / 07</span>
+      <span class="project-label">VEHICLE DYNAMICS <b>/</b> 车辆动力学</span>
+      <span class="stage-pill"><i></i> PHASE 03 / 07</span>
     </header>
     <main>
       <section class="track-heading">
@@ -99,13 +100,25 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           <button class="button secondary" :disabled="!ready" @click="application?.resetVehicle()">
             重置车辆 <kbd>R</kbd>
           </button>
+          <button
+            class="button secondary camera-button"
+            aria-label="切换视角"
+            :disabled="!ready"
+            @click="application?.cycleCamera()"
+          >
+            {{ CAMERA_LABELS[diagnostics.cameraMode] }} <kbd>C</kbd>
+          </button>
           <button class="button primary" :disabled="!ready" @click="application?.togglePause()">
             {{ paused ? "继续驾驶" : "暂停驾驶" }} <kbd>ESC</kbd>
           </button>
         </div>
       </section>
 
-      <section class="driving-panel" aria-label="赛车自由练习">
+      <section
+        class="driving-panel"
+        :class="{ 'onboard-view': diagnostics.cameraMode !== 'chase' }"
+        aria-label="赛车自由练习"
+      >
         <div ref="viewport" class="viewport" data-testid="viewport"></div>
         <div class="scene-vignette"></div>
         <div class="scene-topline">
@@ -204,11 +217,32 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             </div>
           </div>
 
-          <div v-if="diagnostics.distance < 8 && !paused" class="drive-hint">
+          <div
+            v-if="diagnostics.distance < 8 && !paused && diagnostics.cameraMode === 'chase'"
+            class="drive-hint"
+          >
             <kbd>W</kbd><span>轻踩油门，开始你的第一圈。</span>
           </div>
           <div v-if="diagnostics.collisions > 0 && !paused" class="collision-note">
             已接触护栏 · 如被卡住，按 R 回到赛道
+          </div>
+          <div
+            class="dynamics-hud"
+            :class="{ sliding: diagnostics.drifting }"
+            data-testid="drift-state"
+            :data-active="diagnostics.drifting"
+          >
+            <span data-testid="handbrake" :data-value="diagnostics.handbrake">{{
+              diagnostics.handbrake > 0.1
+                ? "手刹制动"
+                : diagnostics.drifting
+                  ? "漂移中"
+                  : diagnostics.rearGrip < 0.92
+                    ? "抓地恢复"
+                    : "稳定行驶"
+            }}</span>
+            <strong>{{ Math.abs(diagnostics.slipAngle).toFixed(0) }}<small>°</small></strong>
+            <span>累计漂移 {{ diagnostics.driftTime.toFixed(1) }} s</span>
           </div>
         </template>
 
@@ -240,7 +274,11 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           </div>
         </div>
         <div class="scene-bottomline">
-          <span>追尾视角 <b>·</b> {{ diagnostics.inputSource }}</span
+          <span
+            ><span data-testid="camera-mode">{{ CAMERA_LABELS[diagnostics.cameraMode] }}</span> <b
+              >·</b
+            >
+            {{ diagnostics.inputSource }}</span
           ><span
             >{{ diagnostics.width }} × {{ diagnostics.height }} <b>/</b> DPR
             {{ diagnostics.pixelRatio.toFixed(1) }}</span
@@ -250,10 +288,16 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
 
       <div class="touch-controls" aria-label="触控驾驶">
         <button
-          v-for="control in ['left', 'right', 'brake', 'throttle'] as const"
+          v-for="control in ['left', 'right', 'brake', 'handbrake', 'throttle'] as const"
           :key="control"
           :aria-label="
-            { left: '向左转向', right: '向右转向', brake: '制动和倒车', throttle: '加速' }[control]
+            {
+              left: '向左转向',
+              right: '向右转向',
+              brake: '制动和倒车',
+              handbrake: '手刹漂移',
+              throttle: '加速',
+            }[control]
           "
           :disabled="!ready || paused"
           :class="{ accelerator: control === 'throttle' }"
@@ -262,7 +306,9 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           @pointercancel="touch(control, $event, false)"
           @lostpointercapture="touch(control, $event, false)"
         >
-          {{ { left: "←", right: "→", brake: "制动 / 倒车", throttle: "加速 ↑" }[control] }}
+          {{
+            { left: "←", right: "→", brake: "制动", handbrake: "手刹", throttle: "加速 ↑" }[control]
+          }}
         </button>
       </div>
 
@@ -270,7 +316,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         <div><kbd>W</kbd><kbd>↑</kbd><span>加速</span></div>
         <div><kbd>S</kbd><kbd>↓</kbd><span>制动 / 停稳后倒车</span></div>
         <div><kbd>A</kbd><kbd>D</kbd><span>平滑转向</span></div>
-        <span class="gamepad-guide">手柄：RT 油门 / LT 制动 / 左摇杆转向</span
+        <div><kbd>Space</kbd><span>手刹 / 漂移</span></div>
+        <span class="gamepad-guide">手柄：RT / LT 踏板 · A 手刹 · X 视角</span
         ><span class="engine-status"
           ><i></i><span data-testid="backend">{{ diagnostics.backend }}</span
           ><b>{{ diagnostics.fps || "—" }} FPS</b></span
@@ -283,6 +330,13 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           <div>物理步数 <b data-testid="physics-steps">{{ diagnostics.physicsSteps }}</b></div>
           <div>车轮着地 <b data-testid="grounded">{{ diagnostics.groundedWheels }} / 4</b></div>
           <div>护栏接触 <b data-testid="collisions">{{ diagnostics.collisions }}</b></div>
+          <div>侧滑角 <b data-testid="slip-angle">{{ diagnostics.slipAngle.toFixed(1) }}°</b></div>
+          <div>
+            后轮抓地
+            <b data-testid="rear-grip" :data-value="diagnostics.rearGrip"
+              >{{ (diagnostics.rearGrip * 100).toFixed(0) }}%</b
+            >
+          </div>
           <div>物理 CPU / 步 <b>{{ diagnostics.physicsMs.toFixed(2) }} ms</b></div>
           <div>渲染 CPU 提交 / 帧 <b>{{ diagnostics.renderSubmitMs.toFixed(2) }} ms</b></div>
         </div>
@@ -291,7 +345,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
     </main>
     <footer>
       <span>APEX <b>/</b> BUILT FOR THE NEXT CORNER.</span
-      ><span>阶段 02 · 车辆原型 <i>→</i> 下一阶段：车辆动力学与漂移</span>
+      ><span>阶段 03 · 车辆动力学 <i>→</i> 下一阶段：赛道系统</span>
     </footer>
   </div>
 </template>

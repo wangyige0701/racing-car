@@ -1,3 +1,4 @@
+import type { CameraMode } from "../camera/config";
 export type BootPhase = "starting" | "running" | "paused" | "error";
 
 export interface Diagnostics {
@@ -31,6 +32,12 @@ export interface Diagnostics {
   mapY: number;
   heading: number;
   inputSource: string;
+  handbrake: number;
+  rearGrip: number;
+  slipAngle: number;
+  drifting: boolean;
+  driftTime: number;
+  cameraMode: CameraMode;
 }
 
 export function initialDiagnostics(): Diagnostics {
@@ -65,5 +72,11 @@ export function initialDiagnostics(): Diagnostics {
     mapY: 0,
     heading: 0,
     inputSource: "键盘",
+    handbrake: 0,
+    rearGrip: 1,
+    slipAngle: 0,
+    drifting: false,
+    driftTime: 0,
+    cameraMode: "chase",
   };
 }

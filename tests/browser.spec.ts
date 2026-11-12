@@ -182,6 +182,63 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
   expect(errors).toEqual([]);
 });
 
+test("handbrake driving and all four views render with no GPU errors", async ({
+  page,
+}, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto("/");
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  await page.keyboard.down("w");
+  await expect
+    .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
+    .toBeGreaterThan(65);
+  await page.keyboard.up("w");
+  await page.keyboard.down("d");
+  await page.keyboard.down("Space");
+  await expect(page.getByTestId("handbrake")).toHaveAttribute("data-value", "1");
+  await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "true");
+  await page.screenshot({ path: testInfo.outputPath("drifting.png"), fullPage: true });
+  await page.keyboard.up("Space");
+  await page.keyboard.up("d");
+  await expect(page.getByTestId("handbrake")).toHaveAttribute("data-value", "0");
+  await page.getByRole("button", { name: "重置车辆" }).click();
+  await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "false");
+  for (const [mode, label] of [
+    ["cockpit", "驾驶舱"],
+    ["hood", "引擎盖"],
+    ["bumper", "保险杠"],
+    ["chase", "追尾视角"],
+  ]) {
+    await page.keyboard.press("c");
+    await expect(page.getByTestId("camera-mode")).toHaveText(label);
+    await page.waitForTimeout(800); // Inspect the completed 0.65 s camera transition.
+    await page.screenshot({ path: testInfo.outputPath(`${mode}.png`), fullPage: true });
+  }
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("c");
+  await expect(page.getByTestId("camera-mode")).toHaveText("驾驶舱");
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: testInfo.outputPath("cockpit-mobile.png"), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const button = page.getByRole("button", { name: "手刹漂移" });
+  await button.scrollIntoViewIfNeeded();
+  const box = await button.boundingBox();
+  if (!box) throw new Error("Handbrake touch control is missing");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(page.getByTestId("handbrake")).toHaveAttribute("data-value", "1");
+  await button.dispatchEvent("pointercancel", { pointerId: 1 });
+  await page.mouse.up();
+  await expect(page.getByTestId("handbrake")).toHaveAttribute("data-value", "0");
+  expect(errors).toEqual([]);
+});
+
 test("losing focus pauses driving and clears a held throttle before resume", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
@@ -189,16 +246,19 @@ test("losing focus pauses driving and clears a held throttle before resume", asy
   await expect
     .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
     .toBeGreaterThan(10);
+  await page.keyboard.down("Space");
   await page.evaluate(() => window.dispatchEvent(new Event("blur")));
   await expect(page.getByText("驾驶已暂停", { exact: true })).toBeVisible();
   const steps = await page.getByTestId("physics-steps").textContent();
   await page.waitForTimeout(200);
   expect(await page.getByTestId("physics-steps").textContent()).toBe(steps);
   await page.keyboard.up("w");
+  await page.keyboard.up("Space");
   await page.getByRole("button", { name: "回到驾驶" }).click();
   await expect
     .poll(async () => Number(await page.getByTestId("throttle").getAttribute("data-value")))
     .toBeLessThan(0.01);
+  await expect(page.getByTestId("handbrake")).toHaveAttribute("data-value", "0");
   await page.keyboard.press("Escape");
   await expect(page.getByText("驾驶已暂停", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");

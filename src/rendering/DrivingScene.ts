@@ -22,18 +22,18 @@ import {
 } from "three/webgpu";
 import { color, mix, positionWorld, sin } from "three/tsl";
 import { VehicleVisual } from "../vehicle/VehicleVisual";
-import { ChaseCamera } from "../camera/ChaseCamera";
+import { CameraManager } from "../camera/CameraManager";
 import type { Track } from "../track/Track";
 import type { VehiclePhysics } from "../vehicle/VehiclePhysics";
 import type { PhysicsWorld } from "../physics/PhysicsWorld";
 
 export class DrivingScene {
   readonly scene = new Scene();
-  readonly chase = new ChaseCamera();
+  readonly cameras = new CameraManager();
   readonly vehicle = new VehicleVisual();
   readonly sun = new DirectionalLight("#fff0c8", 3.6);
   get camera() {
-    return this.chase.camera;
+    return this.cameras.camera;
   }
 
   constructor(track: Track) {
@@ -294,12 +294,17 @@ export class DrivingScene {
     snap = false,
   ): void {
     this.vehicle.update(vehicle, alpha);
-    this.chase.update(this.vehicle.root, vehicle.speed, dt, physics.world, snap);
+    this.updateCamera(vehicle, dt, physics, snap);
     this.sun.target.position.copy(this.vehicle.root.position);
     this.sun.position.copy(this.vehicle.root.position).add({ x: -25, y: 50, z: -20 });
   }
   resize(width: number, height: number): void {
-    this.chase.resize(width, height);
+    this.cameras.resize(width, height);
+  }
+
+  updateCamera(vehicle: VehiclePhysics, dt: number, physics: PhysicsWorld, snap = false): void {
+    this.cameras.update(this.vehicle.root, vehicle.speed, dt, physics.world, snap);
+    this.vehicle.setView(this.cameras.mode);
   }
 
   dispose(): void {

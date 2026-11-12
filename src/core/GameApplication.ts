@@ -82,6 +82,7 @@ export class GameApplication {
         () => this.togglePause(),
         () => this.resetVehicle(),
         this.pauseForFocus,
+        () => this.cycleCamera(),
       );
       this.diagnostics.message = "WebGPU 后端与设备已验证";
       this.diagnostics.loadMs = performance.now() - started;
@@ -106,7 +107,7 @@ export class GameApplication {
       if (this.diagnostics.phase === "running") {
         const alpha = this.clock.advance(delta, this.simulate);
         this.scene.update(this.vehicle, alpha, delta, this.physics);
-      }
+      } else this.scene.updateCamera(this.vehicle, delta, this.physics);
       if (
         Math.min(window.devicePixelRatio || 1, this.pixelRatioCap) !== this.diagnostics.pixelRatio
       )
@@ -186,6 +187,12 @@ export class GameApplication {
     this.input?.setTouch(control, pressed);
   }
 
+  cycleCamera(): void {
+    if (!this.scene || !["running", "paused"].includes(this.diagnostics.phase)) return;
+    this.scene.cameras.cycle();
+    this.emit();
+  }
+
   resetVehicle(): void {
     if (!this.physics || !this.scene || !this.vehicle) return;
     this.input?.clear();
@@ -236,6 +243,12 @@ export class GameApplication {
           Math.PI,
         collisions: this.physics?.collisionCount ?? 0,
         inputSource: this.input?.source ?? "键盘",
+        handbrake: v.handbrake,
+        rearGrip: v.drift.rearGrip,
+        slipAngle: (v.drift.slipAngle * 180) / Math.PI,
+        drifting: v.drift.active,
+        driftTime: v.drift.duration,
+        cameraMode: this.scene?.cameras.mode ?? "chase",
       });
     }
     if (!this.disposed) this.publish({ ...this.diagnostics });

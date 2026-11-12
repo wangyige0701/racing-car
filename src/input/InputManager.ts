@@ -1,7 +1,7 @@
 import { emptyInput } from "../vehicle/config";
 import type { DriverInput } from "../vehicle/config";
 
-export type TouchControl = "throttle" | "brake" | "left" | "right";
+export type TouchControl = "throttle" | "brake" | "left" | "right" | "handbrake";
 const drivingKeys = new Set([
   "KeyW",
   "KeyS",
@@ -11,6 +11,7 @@ const drivingKeys = new Set([
   "ArrowDown",
   "ArrowLeft",
   "ArrowRight",
+  "Space",
 ]);
 
 /** Keyboard, standard gamepad and touch feed the same normalized driver contract. */
@@ -22,6 +23,7 @@ export class InputManager {
   private padNeedsNeutral = true;
   private pauseWasPressed = false;
   private resetWasPressed = false;
+  private cameraWasPressed = false;
   enabled = true;
   source = "键盘";
 
@@ -29,6 +31,7 @@ export class InputManager {
     private readonly pause: () => void,
     private readonly reset: () => void,
     private readonly blur: () => void,
+    private readonly camera: () => void = () => {},
   ) {
     window.addEventListener("keydown", this.keyDown);
     window.addEventListener("keyup", this.keyUp);
@@ -37,7 +40,6 @@ export class InputManager {
 
   private readonly keyDown = (event: KeyboardEvent): void => {
     const target = event.target;
-    if (event.code === "Space" && target instanceof HTMLButtonElement) return;
     if (
       target instanceof HTMLElement &&
       (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
@@ -52,6 +54,11 @@ export class InputManager {
     }
     if (event.code === "KeyR") {
       this.reset();
+      return;
+    }
+    if (event.code === "KeyC") {
+      event.preventDefault();
+      this.camera();
       return;
     }
     if (this.enabled && drivingKeys.has(event.code)) {
@@ -81,26 +88,35 @@ export class InputManager {
     );
     const pause = pad?.buttons[9]?.pressed ?? false;
     const reset = pad?.buttons[3]?.pressed ?? false;
+    const camera = pad?.buttons[2]?.pressed ?? false;
     if (pause && !this.pauseWasPressed) this.pause();
     if (reset && !this.resetWasPressed) this.reset();
+    if (camera && !this.cameraWasPressed) this.camera();
     this.pauseWasPressed = pause;
     this.resetWasPressed = reset;
+    this.cameraWasPressed = camera;
     const axis = pad?.axes[0] ?? 0;
     const steer = Math.abs(axis) < 0.12 ? 0 : (Math.sign(axis) * (Math.abs(axis) - 0.12)) / 0.88;
     const throttle = pad?.buttons[7]?.value ?? 0,
       brake = pad?.buttons[6]?.value ?? 0;
+    const handbrake = pad?.buttons[0]?.value ?? 0;
     if (!pad) this.padNeedsNeutral = true;
-    if (pad && throttle < 0.05 && brake < 0.05 && steer === 0) this.padNeedsNeutral = false;
+    if (pad && throttle < 0.05 && brake < 0.05 && handbrake < 0.05 && steer === 0)
+      this.padNeedsNeutral = false;
     this.pad.throttle = this.padNeedsNeutral ? 0 : throttle;
     this.pad.brake = this.padNeedsNeutral ? 0 : brake;
     this.pad.steer = this.padNeedsNeutral ? 0 : steer;
-    if (!this.padNeedsNeutral && (throttle > 0.05 || brake > 0.05 || steer !== 0))
+    this.pad.handbrake = this.padNeedsNeutral ? 0 : handbrake;
+    if (
+      !this.padNeedsNeutral &&
+      (throttle > 0.05 || brake > 0.05 || handbrake > 0.05 || steer !== 0)
+    )
       this.source = "手柄";
   }
 
   read(): DriverInput {
     if (!this.enabled) {
-      this.value.throttle = this.value.brake = this.value.steer = 0;
+      this.value.throttle = this.value.brake = this.value.steer = this.value.handbrake = 0;
       return this.value;
     }
     this.value.throttle = Math.max(
@@ -114,6 +130,10 @@ export class InputManager {
     const left = this.keys.has("KeyA") || this.keys.has("ArrowLeft") || this.touch.has("left");
     const right = this.keys.has("KeyD") || this.keys.has("ArrowRight") || this.touch.has("right");
     this.value.steer = left || right ? Number(right) - Number(left) : this.pad.steer;
+    this.value.handbrake = Math.max(
+      this.pad.handbrake,
+      Number(this.keys.has("Space") || this.touch.has("handbrake")),
+    );
     return this.value;
   }
 
@@ -121,8 +141,8 @@ export class InputManager {
     this.keys.clear();
     this.touch.clear();
     this.padNeedsNeutral = true;
-    this.pad.throttle = this.pad.brake = this.pad.steer = 0;
-    this.value.throttle = this.value.brake = this.value.steer = 0;
+    this.pad.throttle = this.pad.brake = this.pad.steer = this.pad.handbrake = 0;
+    this.value.throttle = this.value.brake = this.value.steer = this.value.handbrake = 0;
   }
 
   dispose(): void {

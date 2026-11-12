@@ -18,6 +18,8 @@ export const VEHICLE = {
     compression: 4.4,
     relaxation: 5.8,
     maxForce: 12000,
+    antiRollStiffness: 6500,
+    antiRollMaxForce: 1800,
   },
   tireFriction: 2.3,
   sideFriction: 1.1,
@@ -29,6 +31,16 @@ export const VEHICLE = {
   maxSpeed: 58,
   reverseSpeed: 9,
   maxBrakeForce: 14000,
+  handbrakeForce: 9500,
+  groundYawDamping: 1.7,
+  drift: {
+    rearGripMinimum: 0.48,
+    releaseRate: 2.6,
+    engageRate: 14,
+    minSpeed: 5,
+    enterAngle: (9 * Math.PI) / 180,
+    exitAngle: (5 * Math.PI) / 180,
+  },
   maxSteer: 0.52,
   steeringRate: 4.5,
   throttleRate: 7,
@@ -38,5 +50,6 @@ export interface DriverInput {
   throttle: number;
   brake: number;
   steer: number;
+  handbrake: number;
 }
-export const emptyInput = (): DriverInput => ({ throttle: 0, brake: 0, steer: 0 });
+export const emptyInput = (): DriverInput => ({ throttle: 0, brake: 0, steer: 0, handbrake: 0 });

@@ -2,6 +2,11 @@ import {
   BoxGeometry,
   BufferGeometry,
   CylinderGeometry,
+  CircleGeometry,
+  TorusGeometry,
+  CanvasTexture,
+  PlaneGeometry,
+  SRGBColorSpace,
   Float32BufferAttribute,
   Group,
   Mesh,
@@ -9,10 +14,16 @@ import {
 } from "three/webgpu";
 import { VEHICLE } from "./config";
 import type { VehiclePhysics } from "./VehiclePhysics";
+import type { CameraMode } from "../camera/config";
 
 /** Temporary authored procedural coupe; replace with licensed GLB in the asset stage. */
 export class VehicleVisual {
   readonly root = new Group();
+  private readonly exterior = new Group();
+  private readonly cockpit = new Group();
+  private readonly bonnet = new Group();
+  private readonly steeringWheel = new Group();
+  private readonly needles: Group[] = [];
   private readonly pivots: Group[] = [];
   private readonly wheels: Group[] = [];
   private readonly brakeMaterial = new MeshStandardNodeMaterial({
@@ -119,6 +130,71 @@ export class VehicleVisual {
         object.receiveShadow = true;
       }
     });
+    for (const child of [...this.root.children]) this.exterior.add(child);
+    this.root.add(this.exterior, this.cockpit, this.bonnet);
+    // Development interior; replace with an authored GLB in the asset stage.
+    const hood = this.add(new BoxGeometry(1.64, 0.08, 1.35), paint, this.bonnet);
+    hood.position.set(0, 0.29, 1.45);
+    const dash = this.add(new BoxGeometry(1.6, 0.18, 0.46), carbon, this.cockpit);
+    dash.position.set(0, 0.43, 0.98);
+    const panel = this.add(new BoxGeometry(0.56, 0.2, 0.04), carbon, this.cockpit);
+    panel.position.set(-0.32, 0.56, 0.76);
+    const dial = new MeshStandardNodeMaterial({ color: "#24332e", roughness: 0.8 });
+    const needleMaterial = new MeshStandardNodeMaterial({
+      color: "#ddf698",
+      emissive: "#ddf698",
+      emissiveIntensity: 0.8,
+    });
+    const tickGeometry = new BoxGeometry(0.004, 0.011, 0.003);
+    for (const x of [-0.47, -0.17]) {
+      const gauge = this.add(new CircleGeometry(0.075, 32), dial, this.cockpit);
+      gauge.position.set(x, 0.57, 0.733);
+      gauge.rotation.y = Math.PI;
+      for (let i = 0; i < 11; i++) {
+        const angle = -2.2 + i * 0.44;
+        const tick = this.add(tickGeometry, needleMaterial, this.cockpit);
+        tick.position.set(x + Math.sin(angle) * 0.064, 0.57 + Math.cos(angle) * 0.064, 0.726);
+        tick.rotation.z = -angle;
+      }
+      const needle = new Group();
+      needle.position.set(x, 0.57, 0.725);
+      const bar = this.add(new BoxGeometry(0.006, 0.061, 0.004), needleMaterial, needle);
+      bar.position.y = 0.025;
+      this.cockpit.add(needle);
+      this.needles.push(needle);
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 64;
+    const context = canvas.getContext("2d");
+    if (context) {
+      context.fillStyle = "#182021";
+      context.fillRect(0, 0, 512, 64);
+      context.fillStyle = "#d9ef93";
+      context.font = "24px monospace";
+      context.textAlign = "center";
+      context.fillText("RPM", 110, 42);
+      context.fillText("KM/H", 400, 42);
+      const texture = new CanvasTexture(canvas);
+      texture.colorSpace = SRGBColorSpace;
+      const labels = this.add(
+        new PlaneGeometry(0.52, 0.065),
+        new MeshStandardNodeMaterial({ map: texture, roughness: 1 }),
+        this.cockpit,
+      );
+      labels.position.set(-0.32, 0.475, 0.727);
+      labels.rotation.y = Math.PI;
+    }
+    this.steeringWheel.position.set(-0.32, 0.47, 0.47);
+    this.cockpit.add(this.steeringWheel);
+    this.add(new TorusGeometry(0.165, 0.022, 10, 40), carbon, this.steeringWheel);
+    for (const angle of [0, 2.1, -2.1]) {
+      const spoke = this.add(new BoxGeometry(0.018, 0.15, 0.025), alloy, this.steeringWheel);
+      spoke.position.set(Math.sin(angle) * 0.065, Math.cos(angle) * 0.065, 0);
+      spoke.rotation.z = -angle;
+    }
+    this.add(new BoxGeometry(0.065, 0.05, 0.04), carbon, this.steeringWheel);
+    this.setView("chase");
   }
 
   private add(geometry: BufferGeometry, material: MeshStandardNodeMaterial, parent: Group): Mesh {
@@ -144,17 +220,27 @@ export class VehicleVisual {
     this.root.position.lerpVectors(vehicle.previousPosition, vehicle.position, alpha);
     this.root.quaternion.slerpQuaternions(vehicle.previousRotation, vehicle.rotation, alpha);
     const steer = vehicle.previousSteer + (vehicle.steer - vehicle.previousSteer) * alpha;
-    const spin =
-      vehicle.previousWheelAngle + (vehicle.wheelAngle - vehicle.previousWheelAngle) * alpha;
     this.pivots.forEach((pivot, i) => {
       pivot.position.y = -(
         vehicle.previousWheelLengths[i] +
         (vehicle.wheelLengths[i] - vehicle.previousWheelLengths[i]) * alpha
       );
       pivot.rotation.y = i < 2 ? steer : 0;
-      this.wheels[i].rotation.x = spin;
+      this.wheels[i].rotation.x =
+        vehicle.previousWheelAngles[i] +
+        (vehicle.wheelAngles[i] - vehicle.previousWheelAngles[i]) * alpha;
     });
-    this.brakeMaterial.emissiveIntensity = vehicle.brake > 0.05 ? 3 : 0.5;
+    this.steeringWheel.rotation.z = steer * 3;
+    this.needles[0].rotation.z = 2.2 - (vehicle.rpm / 7500) * 4.4;
+    this.needles[1].rotation.z = 2.2 - Math.min(1, (Math.abs(vehicle.speed) * 3.6) / 240) * 4.4;
+    this.brakeMaterial.emissiveIntensity =
+      vehicle.brake > 0.05 || vehicle.handbrake > 0.05 ? 3 : 0.5;
+  }
+
+  setView(mode: CameraMode): void {
+    this.exterior.visible = mode === "chase";
+    this.cockpit.visible = mode === "cockpit";
+    this.bonnet.visible = mode === "cockpit" || mode === "hood";
   }
 }
 

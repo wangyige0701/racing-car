@@ -51,7 +51,7 @@ test("four-wheel suspension settles and throttle accelerates a dynamic chassis",
     expect(vehicle.position.y).toBeGreaterThan(0.4);
     expect(vehicle.position.y).toBeLessThan(0.8);
     const initial = vehicle.position.clone();
-    step(180, { throttle: 1, brake: 0, steer: 0 });
+    step(180, { throttle: 1, brake: 0, steer: 0, handbrake: 0 });
     expect(vehicle.speed).toBeGreaterThan(10);
     expect(vehicle.position.distanceTo(initial)).toBeGreaterThan(15);
     expect(vehicle.groundedWheels).toBe(4);
@@ -67,7 +67,7 @@ test("continuous barriers stop a driven chassis crossing the road edge", async (
       yaw = Math.atan2(s.tx, s.tz) + Math.PI / 2;
     vehicle.body.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true);
     vehicle.afterStep(0);
-    step(240, { throttle: 1, brake: 0, steer: 0 });
+    step(240, { throttle: 1, brake: 0, steer: 0, handbrake: 0 });
     const nearest = track.samples[track.nearest(vehicle.position.x, vehicle.position.z)];
     expect(physics.collisionCount).toBeGreaterThan(0);
     expect(Math.hypot(vehicle.position.x - nearest.x, vehicle.position.z - nearest.z)).toBeLessThan(
@@ -131,7 +131,7 @@ test("the same steering input yaws in opposite directions when reversing", async
   for (const reverse of [false, true]) {
     const { physics, vehicle, step } = await setup();
     try {
-      const input = { throttle: reverse ? 0 : 1, brake: reverse ? 1 : 0, steer: 0 };
+      const input = { throttle: reverse ? 0 : 1, brake: reverse ? 1 : 0, steer: 0, handbrake: 0 };
       step(90, input);
       const yaw = (q: typeof vehicle.rotation) =>
         Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y));
@@ -152,20 +152,20 @@ test("the same steering input yaws in opposite directions when reversing", async
 test("braking precedes reverse, reverse is limited, and W brakes reverse motion", async () => {
   const { physics, vehicle, step } = await setup();
   try {
-    step(150, { throttle: 1, brake: 0, steer: 0 });
+    step(150, { throttle: 1, brake: 0, steer: 0, handbrake: 0 });
     const forwardSpeed = vehicle.speed;
-    step(15, { throttle: 0, brake: 1, steer: 0 });
+    step(15, { throttle: 0, brake: 1, steer: 0, handbrake: 0 });
     expect(vehicle.speed).toBeGreaterThan(0);
     expect(vehicle.speed).toBeLessThan(forwardSpeed);
     expect(vehicle.gear).toBeGreaterThan(0);
-    step(240, { throttle: 0, brake: 1, steer: 0 });
+    step(240, { throttle: 0, brake: 1, steer: 0, handbrake: 0 });
     expect(vehicle.gear).toBe(-1);
     expect(vehicle.speed).toBeLessThan(-2);
     expect(vehicle.speed).toBeGreaterThan(-9.5);
-    step(10, { throttle: 1, brake: 0, steer: 0 });
+    step(10, { throttle: 1, brake: 0, steer: 0, handbrake: 0 });
     expect(vehicle.speed).toBeLessThan(0);
     expect(vehicle.brake).toBeGreaterThan(0);
-    step(180, { throttle: 1, brake: 0, steer: 0 });
+    step(180, { throttle: 1, brake: 0, steer: 0, handbrake: 0 });
     expect(vehicle.gear).toBeGreaterThan(0);
     expect(vehicle.speed).toBeGreaterThan(1);
   } finally {
@@ -176,15 +176,15 @@ test("braking precedes reverse, reverse is limited, and W brakes reverse motion"
 test("steering is progressive, turns the chassis, and reset clears motion", async () => {
   const { physics, vehicle, step } = await setup();
   try {
-    step(70, { throttle: 1, brake: 0, steer: 0 });
+    step(70, { throttle: 1, brake: 0, steer: 0, handbrake: 0 });
     const before = vehicle.rotation.clone();
-    step(1, { throttle: 0.4, brake: 0, steer: 1 });
+    step(1, { throttle: 0.4, brake: 0, steer: 1, handbrake: 0 });
     expect(vehicle.steer).toBeGreaterThan(0);
     expect(vehicle.steer).toBeLessThan(0.1);
-    step(45, { throttle: 0.4, brake: 0, steer: 1 });
+    step(45, { throttle: 0.4, brake: 0, steer: 1, handbrake: 0 });
     expect(before.angleTo(vehicle.rotation)).toBeGreaterThan(0.1);
     const steer = vehicle.steer;
-    step(1, { throttle: 0, brake: 0, steer: -1 });
+    step(1, { throttle: 0, brake: 0, steer: -1, handbrake: 0 });
     expect(vehicle.steer).toBeGreaterThan(0);
     expect(vehicle.steer).toBeLessThan(steer);
     vehicle.reset(true);

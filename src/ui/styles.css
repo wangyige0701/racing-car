@@ -790,6 +790,28 @@ kbd {
     monospace;
   color: #738b6d;
 }
+.dynamics-hud {
+  position: absolute;
+  right: 28px;
+  top: 88px;
+  display: grid;
+  gap: 4px;
+  text-align: right;
+  color: #edf1dc;
+  font-size: 11px;
+  text-shadow: 0 1px 5px #102018;
+  pointer-events: none;
+}
+.dynamics-hud strong {
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+}
+.dynamics-hud small {
+  font-size: 14px;
+}
+.dynamics-hud.sliding {
+  color: #d9f582;
+}
 .touch-controls {
   display: none;
 }
@@ -857,6 +879,47 @@ footer i {
   }
 }
 @media (max-width: 760px) {
+  .onboard-view .speedometer {
+    width: 118px;
+    bottom: 48px;
+    right: 14px;
+  }
+  .onboard-view .speed-value strong {
+    font-size: 43px;
+    letter-spacing: -3px;
+  }
+  .onboard-view .gear strong {
+    font-size: 23px;
+  }
+  .onboard-view .speed-row {
+    gap: 8px;
+  }
+  .onboard-view .vehicle-name,
+  .onboard-view .rpm-scale,
+  .onboard-view .rpm-caption,
+  .onboard-view .rpm-bar,
+  .onboard-view .pedals {
+    display: none;
+  }
+  .onboard-view .track-map {
+    width: 65px;
+    bottom: 48px;
+  }
+  .onboard-view .track-map svg {
+    height: 73px;
+  }
+  .onboard-view .map-heading,
+  .onboard-view .map-caption {
+    display: none;
+  }
+  .dynamics-hud {
+    top: 65px;
+    right: 16px;
+    font-size: 9px;
+  }
+  .dynamics-hud strong {
+    font-size: 25px;
+  }
   .app-shell {
     padding: 0 15px;
   }
@@ -904,9 +967,11 @@ footer i {
   .toolbar {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
   }
   .toolbar .button {
     flex: 1;
+    min-width: 0;
     font-size: 10px;
     gap: 6px;
     justify-content: center;
@@ -915,6 +980,9 @@ footer i {
     font-size: 8px;
     min-width: 18px;
     padding: 2px;
+  }
+  .camera-button kbd {
+    display: none;
   }
   .quality-control {
     gap: 6px;

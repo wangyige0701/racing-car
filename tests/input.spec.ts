@@ -8,11 +8,13 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
     const { InputManager } = await import(modulePath);
     let pauses = 0,
       resets = 0,
-      blurs = 0;
+      blurs = 0,
+      cameras = 0;
     const input = new InputManager(
       () => pauses++,
       () => resets++,
       () => blurs++,
+      () => cameras++,
     );
     const pad = {
       connected: true,
@@ -29,6 +31,12 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
       snapshots.held = { ...input.read() };
       key("keyup", "ArrowUp");
       snapshots.released = { ...input.read() };
+      snapshots.spaceDefaultAllowed = key("keydown", "Space");
+      snapshots.handbrake = { ...input.read() };
+      key("keyup", "Space");
+      snapshots.handbrakeReleased = { ...input.read() };
+      key("keydown", "KeyC");
+      key("keydown", "KeyC", true);
       key("keydown", "KeyW");
       window.dispatchEvent(new Event("blur"));
       key("keydown", "KeyW", true);
@@ -60,9 +68,20 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
       input.poll();
       snapshots.repressed = { ...input.read() };
       pad.buttons[9].pressed = true;
+      pad.buttons[2].pressed = true;
+      pad.buttons[0].value = 1;
       input.poll();
       input.poll();
-      snapshots.callbacks = { pauses, resets, blurs };
+      snapshots.padHandbrake = { ...input.read() };
+      input.clear();
+      input.poll();
+      snapshots.heldHandbrakeAfterClear = { ...input.read() };
+      pad.buttons[0].value = pad.buttons[7].value = 0;
+      input.poll();
+      pad.buttons[0].value = 1;
+      input.poll();
+      snapshots.repressedHandbrake = { ...input.read() };
+      snapshots.callbacks = { pauses, resets, blurs, cameras };
     } finally {
       input.dispose();
     }
@@ -71,12 +90,18 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
     return snapshots;
   }, "/src/input/InputManager.ts");
   expect(result.arrowDefaultAllowed).toBe(false);
-  expect(result.held).toEqual({ throttle: 1, brake: 0, steer: 0 });
+  expect(result.spaceDefaultAllowed).toBe(false);
+  expect(result.handbrake).toMatchObject({ handbrake: 1 });
+  expect(result.handbrakeReleased).toMatchObject({ handbrake: 0 });
+  expect(result.padHandbrake).toMatchObject({ handbrake: 1 });
+  expect(result.heldHandbrakeAfterClear).toMatchObject({ handbrake: 0 });
+  expect(result.repressedHandbrake).toMatchObject({ handbrake: 1 });
+  expect(result.held).toEqual({ throttle: 1, brake: 0, steer: 0, handbrake: 0 });
   for (const name of ["released", "blurred", "heldOnConnect", "paused", "resumedHeld"])
-    expect(result[name]).toEqual({ throttle: 0, brake: 0, steer: 0 });
+    expect(result[name]).toEqual({ throttle: 0, brake: 0, steer: 0, handbrake: 0 });
   expect(result.pad).toMatchObject({ throttle: 0.8, brake: 0 });
-  expect((result.pad as { steer: number }).steer).toBeGreaterThan(0.5);
-  expect(result.repressed).toEqual({ throttle: 0.6, brake: 0, steer: 0 });
-  expect(result.callbacks).toEqual({ pauses: 2, resets: 1, blurs: 1 });
+  expect((result.pad as { steer: number; handbrake: 0 }).steer).toBeGreaterThan(0.5);
+  expect(result.repressed).toEqual({ throttle: 0.6, brake: 0, steer: 0, handbrake: 0 });
+  expect(result.callbacks).toEqual({ pauses: 2, resets: 1, blurs: 1, cameras: 2 });
   expect(result.pausesAfterDispose).toBe(2);
 });
