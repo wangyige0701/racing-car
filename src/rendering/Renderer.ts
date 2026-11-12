@@ -58,7 +58,7 @@ export class Graphics {
       renderer.toneMappingExposure = 1.15;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = PCFShadowMap;
-      renderer.domElement.setAttribute("aria-label", "WebGPU 实时三维物理测试台");
+      renderer.domElement.setAttribute("aria-label", "WebGPU 赛车自由练习场");
       const info = adapter.info;
       const adapterName =
         [info?.vendor, info?.architecture, info?.description].filter(Boolean).join(" / ") ||

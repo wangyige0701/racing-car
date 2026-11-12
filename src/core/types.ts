@@ -15,7 +15,22 @@ export interface Diagnostics {
   width: number;
   height: number;
   pixelRatio: number;
-  bodyHeight: number;
+  speedKmh: number;
+  rpm: number;
+  gear: number;
+  throttle: number;
+  brake: number;
+  steer: number;
+  groundedWheels: number;
+  distance: number;
+  elapsed: number;
+  collisions: number;
+  trackLength: number;
+  mapPoints: string;
+  mapX: number;
+  mapY: number;
+  heading: number;
+  inputSource: string;
 }
 
 export function initialDiagnostics(): Diagnostics {
@@ -34,6 +49,21 @@ export function initialDiagnostics(): Diagnostics {
     width: 0,
     height: 0,
     pixelRatio: 1,
-    bodyHeight: 4,
+    speedKmh: 0,
+    rpm: 950,
+    gear: 1,
+    throttle: 0,
+    brake: 0,
+    steer: 0,
+    groundedWheels: 0,
+    distance: 0,
+    elapsed: 0,
+    collisions: 0,
+    trackLength: 0,
+    mapPoints: "",
+    mapX: 0,
+    mapY: 0,
+    heading: 0,
+    inputSource: "键盘",
   };
 }

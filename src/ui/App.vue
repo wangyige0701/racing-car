@@ -2,30 +2,35 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { initialDiagnostics } from "../core/types";
 import type { GameApplication } from "../core/GameApplication";
+import type { TouchControl } from "../input/InputManager";
 
 const viewport = ref<HTMLDivElement>();
 const diagnostics = shallowRef(initialDiagnostics());
 const quality = ref<"high" | "balanced">("high");
-const fpsHistory = ref<number[]>(Array(14).fill(0));
 let application: GameApplication | undefined;
 let unmounted = false;
 const ready = computed(() => ["running", "paused"].includes(diagnostics.value.phase));
 const paused = computed(() => diagnostics.value.phase === "paused");
-const statusText = computed(
+const time = computed(() => {
+  const seconds = diagnostics.value.elapsed;
+  return `${Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, "0")}:${(seconds % 60).toFixed(1).padStart(4, "0")}`;
+});
+const status = computed(
   () =>
-    ({ starting: "系统初始化", running: "实时运行中", paused: "模拟已暂停", error: "启动未完成" })[
-      diagnostics.value.phase
-    ],
+    ({
+      starting: "正在准备赛道",
+      running: "自由驾驶中",
+      paused: "驾驶已暂停",
+      error: "引擎已停止",
+    })[diagnostics.value.phase],
 );
-
 onMounted(async () => {
   try {
     const { GameApplication } = await import("../core/GameApplication");
     if (unmounted || !viewport.value) return;
     application = new GameApplication(viewport.value, (snapshot) => {
-      if (snapshot.frames !== diagnostics.value.frames) {
-        fpsHistory.value = [...fpsHistory.value.slice(1), snapshot.fps];
-      }
       diagnostics.value = snapshot;
     });
     await application.start();
@@ -42,214 +47,251 @@ onBeforeUnmount(() => {
   unmounted = true;
   application?.dispose();
 });
-function changeQuality() {
-  application?.setQuality(quality.value);
-}
 function retry() {
   if (application) void application.restart();
   else window.location.reload();
+}
+function changeQuality(event: Event) {
+  application?.setQuality(quality.value);
+  (event.target as HTMLElement).blur();
+}
+function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
+  event.preventDefault();
+  const button = event.currentTarget as HTMLElement;
+  if (pressed) button.setPointerCapture(event.pointerId);
+  application?.touch(control, pressed);
 }
 </script>
 
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="./" aria-label="APEX Racing Lab 首页"
+      <a class="brand" href="./" aria-label="APEX 赛车首页"
         ><span class="brand-mark">A</span>APEX<span class="brand-divider"></span
         ><span class="brand-sub">RACING LAB</span></a
       >
-      <div class="project-label">赛车研发计划 <span>/</span> 技术验证</div>
-      <div class="stage-pill"><span></span> PHASE 01 / 07</div>
+      <span class="project-label">VEHICLE DEVELOPMENT <b>/</b> 车辆原型</span>
+      <span class="stage-pill"><i></i> PHASE 02 / 07</span>
     </header>
-
     <main>
-      <section class="intro">
+      <section class="track-heading">
         <div>
-          <div class="eyebrow"><span class="tiny-line"></span> THE FOUNDATION OF SPEED</div>
-          <h1>速度，始于每一帧<span>。</span></h1>
-          <p>WebGPU 渲染与刚体物理验证。为下一段赛程，打好基础。</p>
+          <div class="eyebrow"><span></span> PINE RIDGE / TEST CIRCUIT</div>
+          <h1>松岭试车场 <span>自由练习</span></h1>
+          <p>
+            {{ diagnostics.trackLength ? (diagnostics.trackLength / 1000).toFixed(2) : "—" }} km
+            <b>·</b> 闭合测试赛道 <b>·</b> 晴 / 干燥路面
+          </p>
         </div>
-        <div class="intro-index">
-          <span>01</span>
-          <div>ENGINE<br />VALIDATION</div>
+        <div class="toolbar">
+          <label class="quality-control"
+            ><span>画质</span
+            ><select
+              v-model="quality"
+              aria-label="渲染精度"
+              :disabled="!ready"
+              @change="changeQuality"
+            >
+              <option value="high">高 · 2×</option>
+              <option value="balanced">均衡 · 1×</option>
+            </select></label
+          >
+          <button class="button secondary" :disabled="!ready" @click="application?.resetVehicle()">
+            重置车辆 <kbd>R</kbd>
+          </button>
+          <button class="button primary" :disabled="!ready" @click="application?.togglePause()">
+            {{ paused ? "继续驾驶" : "暂停驾驶" }} <kbd>ESC</kbd>
+          </button>
         </div>
       </section>
 
-      <div class="workspace">
-        <section class="scene-panel" aria-label="三维物理验证场景">
-          <div ref="viewport" class="viewport" data-testid="viewport"></div>
-          <div class="scene-topline">
-            <div class="live-badge" :class="{ inactive: diagnostics.phase !== 'running' }">
-              <i></i>{{ statusText }}
-            </div>
-            <span class="scene-tag">TEST PAD — A01</span>
+      <section class="driving-panel" aria-label="赛车自由练习">
+        <div ref="viewport" class="viewport" data-testid="viewport"></div>
+        <div class="scene-vignette"></div>
+        <div class="scene-topline">
+          <div class="session-title">
+            <span class="live-dot" :class="{ inactive: diagnostics.phase !== 'running' }"></span
+            ><span>{{ status }}</span><b>/</b><span class="session-number">SESSION 01</span>
           </div>
+          <span class="prototype-label">开发原型 · 程序化车模</span>
+        </div>
 
-          <div v-if="diagnostics.phase === 'starting'" class="scene-message" role="status">
-            <div class="loader"></div>
-            <h2>正在唤醒引擎</h2>
-            <p>{{ diagnostics.message }}</p>
-          </div>
-          <div
-            v-else-if="diagnostics.phase === 'error'"
-            class="scene-message error-message"
-            role="alert"
-          >
-            <span class="error-icon">!</span>
-            <h2>无法启动 WebGPU</h2>
-            <p>{{ diagnostics.message }}</p>
-            <span class="error-help"
-              >请使用支持 WebGPU 的现代浏览器，启用硬件加速，并通过 localhost 或 HTTPS 访问。</span
-            ><button class="button primary" @click="retry">重新检测 <span>↗</span></button>
-          </div>
-
-          <template v-if="ready">
-            <div class="scene-side-label">RIGID BODY / GRAVITY TEST</div>
-            <div class="scene-caption">
-              <span class="crosshair">＋</span>
-              <div>
-                <strong>物理校准台</strong>
-                <p>动态球体 · 重力 · 地面碰撞</p>
-              </div>
-            </div>
-            <div class="scene-scale">
-              <span>Y {{ diagnostics.bodyHeight.toFixed(2) }} m</span>
-              <div></div>
-              <small>1 UNIT = 1 METER</small>
-            </div>
-          </template>
-          <div class="scene-bottomline">
-            <span>程序化验证场景 · 非正式游戏资产</span
-            ><span
-              >{{ diagnostics.width }} × {{ diagnostics.height }} <b> / </b> DPR
-              {{ diagnostics.pixelRatio.toFixed(1) }}</span
-            >
-          </div>
-        </section>
-
-        <aside class="control-panel">
-          <div class="panel-heading">
-            <span class="eyebrow">SYSTEM CHECK</span><span class="outline-icon">↗</span>
-          </div>
-          <h2>引擎检查台</h2>
-          <p class="panel-description">真实设备，实时状态。</p>
-          <div class="checks">
-            <div class="check-row">
-              <span class="check-number">01</span>
-              <div><strong>图形后端</strong><small>Three.js · TSL</small></div>
-              <span
-                class="check-value"
-                :class="{ verified: diagnostics.backend === 'WebGPU' }"
-                data-testid="backend"
-                >{{ diagnostics.backend }}</span
+        <template v-if="ready">
+          <div class="session-info">
+            <span class="hud-label">PRACTICE TIME</span
+            ><strong data-testid="elapsed">{{ time }}</strong>
+            <div>
+              <span>练习里程</span
+              ><b data-testid="distance"
+                >{{ (diagnostics.distance / 1000).toFixed(2) }} <small>km</small></b
               >
             </div>
-            <div class="check-row">
-              <span class="check-number">02</span>
-              <div><strong>物理引擎</strong><small>Rapier 3D · WASM</small></div>
-              <span class="check-value" :class="{ verified: diagnostics.physicsReady }">{{
-                diagnostics.physicsReady ? "已就绪" : "待初始化"
-              }}</span>
-            </div>
-            <div class="check-row">
-              <span class="check-number">03</span>
-              <div><strong>模拟步长</strong><small>独立于渲染帧率</small></div>
-              <span class="check-value neutral">1 / 60 s</span>
-            </div>
           </div>
-          <div class="telemetry">
-            <div>
-              <span class="metric-label">实时帧率</span>
-              <p>
-                <strong data-testid="fps">{{ diagnostics.fps || "—" }}</strong><small>FPS</small>
-              </p>
-            </div>
-            <div class="telemetry-bars" aria-hidden="true">
-              <i
-                v-for="(fps, i) in fpsHistory"
-                :key="i"
-                :style="{
-                  height: `${Math.max(3, Math.min(52, fps * 0.65))}px`,
-                  opacity: fps ? 0.35 + i / 22 : 0.15,
-                }"
-              ></i>
-            </div>
+          <div class="track-map">
+            <div class="map-heading"><span>赛道位置</span><span>N ↑</span></div>
+            <svg viewBox="-135 -190 310 380" role="img" aria-label="赛道地图与车辆位置">
+              <polygon
+                :points="diagnostics.mapPoints"
+                fill="none"
+                stroke="#d5ddc5"
+                stroke-opacity=".18"
+                stroke-width="22"
+                stroke-linejoin="round"
+              />
+              <polygon
+                :points="diagnostics.mapPoints"
+                fill="none"
+                stroke="#d5ddc5"
+                stroke-opacity=".8"
+                stroke-width="3"
+                stroke-linejoin="round"
+              />
+              <g
+                :transform="`translate(${diagnostics.mapX},${diagnostics.mapY}) rotate(${diagnostics.heading})`"
+                :data-heading="diagnostics.heading"
+                data-testid="map-marker"
+              >
+                <circle r="16" fill="#d9f582" fill-opacity=".2" />
+                <path
+                  d="M 0 -12 L 8 9 L 0 5 L -8 9 Z"
+                  fill="#d9f582"
+                  stroke="#26342b"
+                  stroke-width="2"
+                />
+              </g></svg
+            ><span class="map-caption"
+              >PINE RIDGE <b>{{ (diagnostics.trackLength / 1000).toFixed(2) }} KM</b></span
+            >
           </div>
-          <dl class="metrics">
-            <div>
-              <dt>渲染帧数</dt>
-              <dd data-testid="frames">{{ diagnostics.frames.toLocaleString() }}</dd>
-            </div>
-            <div>
-              <dt>物理步数</dt>
-              <dd data-testid="physics-steps">{{ diagnostics.physicsSteps.toLocaleString() }}</dd>
-            </div>
-            <div>
-              <dt>物理 CPU / 步</dt>
-              <dd>{{ diagnostics.physicsMs.toFixed(2) }} ms</dd>
-            </div>
-            <div>
-              <dt>渲染 CPU 提交 / 帧</dt>
-              <dd>{{ diagnostics.renderSubmitMs.toFixed(2) }} ms</dd>
-            </div>
-            <div>
-              <dt>初始化耗时</dt>
-              <dd>
-                {{ diagnostics.loadMs ? `${(diagnostics.loadMs / 1000).toFixed(2)} s` : "—" }}
-              </dd>
-            </div>
-          </dl>
-          <div class="quality-row">
-            <label for="quality">渲染精度</label
-            ><select id="quality" v-model="quality" :disabled="!ready" @change="changeQuality">
-              <option value="high">高 · 最高 2×</option>
-              <option value="balanced">均衡 · 1×</option>
-            </select>
-          </div>
-          <button class="button primary" :disabled="!ready" @click="application?.resetBody()">
-            重新投放刚体 <span>↗</span>
-          </button>
-          <button class="button secondary" :disabled="!ready" @click="application?.togglePause()">
-            {{ paused ? "▷ 继续模拟" : "Ⅱ 暂停模拟" }}
-          </button>
-          <p class="device-info">
-            {{ diagnostics.adapter }}<span>GPU 执行耗时未采样；帧率不代表硬件性能验收。</span>
-          </p>
-        </aside>
-      </div>
 
-      <section class="milestones" aria-label="开发阶段">
-        <div class="milestone current">
-          <span class="milestone-num">01</span>
-          <div>
-            <span class="milestone-label">当前阶段</span>
-            <h3>基础工程与技术验证</h3>
-            <p>WebGPU / 物理 / 渲染循环</p>
+          <div class="speedometer">
+            <div class="vehicle-name">APEX GT <span>/ P01</span></div>
+            <div class="speed-row">
+              <div class="gear">
+                <span>GEAR</span
+                ><strong data-testid="gear">{{
+                  diagnostics.gear === -1 ? "R" : diagnostics.gear
+                }}</strong>
+              </div>
+              <div class="speed-value">
+                <strong data-testid="speed" :data-speed="diagnostics.speedKmh.toFixed(2)">{{
+                  Math.round(Math.abs(diagnostics.speedKmh)).toString().padStart(3, "0")
+                }}</strong
+                ><span>KM/H</span>
+              </div>
+            </div>
+            <div class="rpm-scale"><span>1</span><span>3</span><span>5</span><span>7</span></div>
+            <div class="rpm-bar">
+              <i :style="{ transform: `scaleX(${diagnostics.rpm / 7500})` }"></i>
+            </div>
+            <div class="rpm-caption">
+              <span>{{ Math.round(diagnostics.rpm) }} <small>RPM</small></span
+              ><span>AUTO <b>●</b></span>
+            </div>
+            <div class="pedals">
+              <span>油门</span>
+              <div>
+                <i
+                  :style="{ transform: `scaleX(${diagnostics.throttle})` }"
+                  data-testid="throttle"
+                  :data-value="diagnostics.throttle"
+                ></i>
+              </div>
+              <span>制动</span>
+              <div class="brake-bar">
+                <i :style="{ transform: `scaleX(${diagnostics.brake})` }"></i>
+              </div>
+            </div>
           </div>
-          <span class="milestone-symbol">●</span>
+
+          <div v-if="diagnostics.distance < 8 && !paused" class="drive-hint">
+            <kbd>W</kbd><span>轻踩油门，开始你的第一圈。</span>
+          </div>
+          <div v-if="diagnostics.collisions > 0 && !paused" class="collision-note">
+            已接触护栏 · 如被卡住，按 R 回到赛道
+          </div>
+        </template>
+
+        <div v-if="diagnostics.phase === 'starting'" class="scene-message" role="status">
+          <span class="loader"></span><span class="eyebrow">GETTING ON TRACK</span>
+          <h2>赛道正在就绪</h2>
+          <p>{{ diagnostics.message }}</p>
         </div>
-        <div class="milestone">
-          <span class="milestone-num">02</span>
-          <div>
-            <span class="milestone-label">下一阶段 · 未实现</span>
-            <h3>可驾驶车辆原型</h3>
-            <p>动力 / 转向 / 封闭赛道</p>
-          </div>
-          <span class="milestone-symbol">↗</span>
+        <div
+          v-else-if="diagnostics.phase === 'error'"
+          class="scene-message error-message"
+          role="alert"
+        >
+          <span class="error-icon">!</span>
+          <h2>引擎未能继续运行</h2>
+          <p>{{ diagnostics.message }}</p>
+          <small
+            >请使用支持 WebGPU 的现代浏览器，开启硬件加速，并通过 localhost 或 HTTPS 访问。</small
+          ><button class="button primary" @click="retry">重新检测 <span>↗</span></button>
         </div>
-        <div class="milestone">
-          <span class="milestone-num">03–07</span>
-          <div>
-            <span class="milestone-label">后续阶段 · 未实现</span>
-            <h3>从驾驶手感到完整赛程</h3>
-            <p>漂移 / 赛道 / 视听 / 游戏体验</p>
+        <div v-else-if="paused" class="pause-overlay">
+          <div class="pause-card">
+            <span class="eyebrow">TAKE A BREATHER</span>
+            <h2>暂停一下，再出发。</h2>
+            <p>失去焦点时会自动暂停。恢复后请重新操作油门。</p>
+            <button class="button primary" @click="application?.togglePause()">
+              回到驾驶 <span>↗</span></button
+            ><small>或按 ESC / 手柄 Start</small>
           </div>
+        </div>
+        <div class="scene-bottomline">
+          <span>追尾视角 <b>·</b> {{ diagnostics.inputSource }}</span
+          ><span
+            >{{ diagnostics.width }} × {{ diagnostics.height }} <b>/</b> DPR
+            {{ diagnostics.pixelRatio.toFixed(1) }}</span
+          >
         </div>
       </section>
+
+      <div class="touch-controls" aria-label="触控驾驶">
+        <button
+          v-for="control in ['left', 'right', 'brake', 'throttle'] as const"
+          :key="control"
+          :aria-label="
+            { left: '向左转向', right: '向右转向', brake: '制动和倒车', throttle: '加速' }[control]
+          "
+          :disabled="!ready || paused"
+          :class="{ accelerator: control === 'throttle' }"
+          @pointerdown="touch(control, $event, true)"
+          @pointerup="touch(control, $event, false)"
+          @pointercancel="touch(control, $event, false)"
+          @lostpointercapture="touch(control, $event, false)"
+        >
+          {{ { left: "←", right: "→", brake: "制动 / 倒车", throttle: "加速 ↑" }[control] }}
+        </button>
+      </div>
+
+      <section class="driving-guide" aria-label="驾驶操作">
+        <div><kbd>W</kbd><kbd>↑</kbd><span>加速</span></div>
+        <div><kbd>S</kbd><kbd>↓</kbd><span>制动 / 停稳后倒车</span></div>
+        <div><kbd>A</kbd><kbd>D</kbd><span>平滑转向</span></div>
+        <span class="gamepad-guide">手柄：RT 油门 / LT 制动 / 左摇杆转向</span
+        ><span class="engine-status"
+          ><i></i><span data-testid="backend">{{ diagnostics.backend }}</span
+          ><b>{{ diagnostics.fps || "—" }} FPS</b></span
+        >
+      </section>
+      <details class="diagnostics">
+        <summary>引擎诊断 <span>RAPIER / FIXED 60 HZ</span></summary>
+        <div class="diagnostics-grid">
+          <div>渲染帧数 <b data-testid="frames">{{ diagnostics.frames }}</b></div>
+          <div>物理步数 <b data-testid="physics-steps">{{ diagnostics.physicsSteps }}</b></div>
+          <div>车轮着地 <b data-testid="grounded">{{ diagnostics.groundedWheels }} / 4</b></div>
+          <div>护栏接触 <b data-testid="collisions">{{ diagnostics.collisions }}</b></div>
+          <div>物理 CPU / 步 <b>{{ diagnostics.physicsMs.toFixed(2) }} ms</b></div>
+          <div>渲染 CPU 提交 / 帧 <b>{{ diagnostics.renderSubmitMs.toFixed(2) }} ms</b></div>
+        </div>
+        <p>{{ diagnostics.adapter }} · GPU 执行时间未采样；当前为车辆原型，非完整游戏性能验收。</p>
+      </details>
     </main>
     <footer>
       <span>APEX <b>/</b> BUILT FOR THE NEXT CORNER.</span
-      ><span>原生 WebGPU <i>·</i> 无 WebGL 回退 <i>·</i> DEVELOPMENT BUILD 0.1</span>
+      ><span>阶段 02 · 车辆原型 <i>→</i> 下一阶段：车辆动力学与漂移</span>
     </footer>
   </div>
 </template>

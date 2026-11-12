@@ -32,7 +32,7 @@ test("missing WebGPU produces a clear error and retry never requests WebGL", asy
   await expect(page.getByRole("alert")).toContainText("navigator.gpu");
   await page.getByRole("button", { name: "重新检测" }).click();
   await expect(page.getByRole("alert")).toContainText("navigator.gpu");
-  await expect(page.getByRole("button", { name: "重新投放刚体" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "重置车辆" })).toBeDisabled();
   await expectNoWebGL(page);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
@@ -95,9 +95,7 @@ test("Three backend initialization rejection cannot activate its built-in fallba
   await expectNoWebGL(page);
 });
 
-test("real WebGPU renders, Rapier settles, pause/reset and responsive resize work", async ({
-  page,
-}, testInfo) => {
+test("real WebGPU driving, pause/reset and responsive resize work", async ({ page }, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -105,30 +103,48 @@ test("real WebGPU renders, Rapier settles, pause/reset and responsive resize wor
   });
   await monitorContexts(page);
   await page.goto("/");
-  await expect(page.getByText("实时运行中", { exact: true })).toBeVisible();
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
   await expect(page.getByTestId("backend")).toHaveText("WebGPU");
   await expect(page.locator("canvas")).toHaveCount(1);
+  await page.locator("summary").click();
   await expect
     .poll(async () => Number((await page.getByTestId("frames").innerText()).replaceAll(",", "")))
     .toBeGreaterThan(20);
-  await expect(page.locator(".scene-scale")).toContainText("Y 0.90 m");
+  await expect(page.getByTestId("grounded")).toHaveText("4 / 4");
+  await page.keyboard.down("s");
+  await expect(page.getByTestId("gear")).toHaveText("R");
+  await expect
+    .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
+    .toBeLessThan(-5);
+  await page.keyboard.up("s");
+  await page.getByRole("button", { name: "重置车辆" }).click();
   const contexts = await page.evaluate(
     () => Reflect.get(window, "__requestedContexts") as string[],
   );
   expect(contexts).toContain("webgpu");
   await expectNoWebGL(page);
-  await page.getByRole("button", { name: "暂停模拟" }).click();
+  await page.keyboard.down("w");
+  await expect
+    .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
+    .toBeGreaterThan(30);
+  await page.keyboard.down("d");
+  await expect
+    .poll(async () => Number(await page.getByTestId("map-marker").getAttribute("data-heading")))
+    .toBeGreaterThan(10);
+  await page.keyboard.up("d");
+  await page.keyboard.up("w");
+  await page.screenshot({ path: testInfo.outputPath("desktop.png"), fullPage: true });
+  await page.getByRole("button", { name: "暂停驾驶" }).click();
   const steps = await page.getByTestId("physics-steps").innerText();
   const frames = Number((await page.getByTestId("frames").innerText()).replaceAll(",", ""));
   await expect
     .poll(async () => Number((await page.getByTestId("frames").innerText()).replaceAll(",", "")))
     .toBeGreaterThan(frames + 5);
   expect(await page.getByTestId("physics-steps").innerText()).toBe(steps);
-  await page.getByRole("button", { name: "重新投放刚体" }).click();
-  await expect(page.locator(".scene-scale")).toContainText("Y 4.00 m");
-  await page.screenshot({ path: testInfo.outputPath("desktop.png"), fullPage: true });
-  await page.getByRole("button", { name: "继续模拟" }).click();
-  await expect(page.locator(".scene-scale")).toContainText("Y 0.90 m");
+  await page.getByRole("button", { name: "重置车辆" }).click();
+  await expect(page.getByTestId("speed")).toHaveAttribute("data-speed", "0.00");
+  await page.getByRole("button", { name: "继续驾驶" }).click();
+  await expect(page.getByTestId("grounded")).toHaveText("4 / 4");
   await page.getByLabel("渲染精度").selectOption("balanced");
   await expect
     .poll(() =>
@@ -149,7 +165,44 @@ test("real WebGPU renders, Rapier settles, pause/reset and responsive resize wor
     true,
   );
   await page.screenshot({ path: testInfo.outputPath("mobile.png"), fullPage: true });
+  const accelerator = page.getByRole("button", { name: "加速", exact: true });
+  await accelerator.scrollIntoViewIfNeeded();
+  const box = await accelerator.boundingBox();
+  if (!box) throw new Error("Touch accelerator is not visible");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await expect
+    .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
+    .toBeGreaterThan(5);
+  await page.mouse.move(0, 0);
+  await page.mouse.up();
+  await expect
+    .poll(async () => Number(await page.getByTestId("throttle").getAttribute("data-value")))
+    .toBeLessThan(0.01);
   expect(errors).toEqual([]);
+});
+
+test("losing focus pauses driving and clears a held throttle before resume", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  await page.keyboard.down("w");
+  await expect
+    .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
+    .toBeGreaterThan(10);
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await expect(page.getByText("驾驶已暂停", { exact: true })).toBeVisible();
+  const steps = await page.getByTestId("physics-steps").textContent();
+  await page.waitForTimeout(200);
+  expect(await page.getByTestId("physics-steps").textContent()).toBe(steps);
+  await page.keyboard.up("w");
+  await page.getByRole("button", { name: "回到驾驶" }).click();
+  await expect
+    .poll(async () => Number(await page.getByTestId("throttle").getAttribute("data-value")))
+    .toBeLessThan(0.01);
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("驾驶已暂停", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
 });
 
 test("device loss and uncaptured GPU errors stop rendering and allow a clean restart", async ({
@@ -181,13 +234,13 @@ test("device loss and uncaptured GPU errors stop rendering and allow a clean res
     };
   });
   await page.goto("/");
-  await expect(page.getByText("实时运行中", { exact: true })).toBeVisible();
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
   await page.evaluate(() => Reflect.get(window, "__loseDevice")());
   await expect(page.getByRole("alert")).toContainText("测试设备丢失");
   await expect(page.locator("canvas")).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => Reflect.get(window, "__destroyedDevices"))).toBe(1);
   await page.getByRole("button", { name: "重新检测" }).click();
-  await expect(page.getByText("实时运行中", { exact: true })).toBeVisible();
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
   await expect(page.locator("canvas")).toHaveCount(1);
   await page.evaluate(() => {
     const device = Reflect.get(window, "__lastDevice") as GPUDevice;

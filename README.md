@@ -1,10 +1,10 @@
 # APEX / Racing Lab
 
-高品质 WebGPU 赛车项目的**第一阶段：基础工程与技术验证**。当前是可独立运行的物理校准台，不是完整赛车游戏。球体、平台与周围设施均为程序化验证资产，不包含正式车辆模型。
+高品质 WebGPU 赛车项目的**第二阶段：可驾驶车辆原型**。在约 0.95 km 的松岭闭合试车场驾驶一辆后轮驱动原型车，验证加速、制动、倒车、转向、碰撞、追尾相机和 HUD。当前车辆是明确标注的程序化占位模型，尚非正式 GLB 赛车或完整比赛游戏。
 
 ## 运行
 
-需要 Node.js 20.19+（22.x 需 22.12+）、pnpm 11.18.0，以及支持 WebGPU 且开启硬件加速的现代浏览器。开发使用 localhost / 127.0.0.1，部署使用 HTTPS。
+需要 Node.js 20.19+（22.x 需 22.12+）、pnpm 11.18.0，以及支持 WebGPU、开启硬件加速的现代浏览器。开发使用 localhost / 127.0.0.1，正式部署使用 HTTPS。
 
 ```sh
 pnpm install --frozen-lockfile
@@ -16,72 +16,93 @@ pnpm dev
 ```sh
 pnpm build          # Vue / TypeScript 类型检查 + 生产构建
 pnpm preview        # 本地预览 dist，默认端口 4173
-pnpm test           # 固定步长、Rapier、真实浏览器与异常路径测试
+pnpm test           # 物理、闭环驾驶、输入与真实 WebGPU 浏览器验收
 pnpm format:check   # 格式检查
 ```
 
-测试默认使用已安装的 Google Chrome，不会安装或修改用户浏览器。使用 Edge 时设置 `BROWSER_CHANNEL=msedge`。真实 WebGPU 测试不会跳过不支持 GPU 的环境，也不使用模拟 GPU、WebGL 或软件渲染启动参数来伪造成功。Playwright 会启动测试服务或复用 5173 端口的现有开发服务。
+测试默认使用已安装的 Google Chrome。使用 Edge 时在 PowerShell 设置 `$env:BROWSER_CHANNEL = 'msedge'` 后运行 `pnpm test`。测试会启动或复用 5173 端口的开发服务；本地请求不经过 HTTP 代理。没有 WebGPU 的环境会使实际渲染测试失败，不会跳过或回退 WebGL。
 
-Windows PowerShell 示例：
+依赖使用精确版本和 `pnpm-lock.yaml` 固定。`pnpm-workspace.yaml` 管理工作区内的 `.pnpm-cache/`、`.pnpm-store/`，二者不纳入 Git。没有服务端、数据库、环境变量式游戏配置或外部模型 / 字体 CDN。`dist/` 可作为静态站点通过 HTTPS 托管，并应启用 gzip / Brotli。
 
-```powershell
-$env:BROWSER_CHANNEL = 'msedge'
-pnpm test
-```
+## 驾驶操作
 
-依赖以精确版本及 `pnpm-lock.yaml` 固定；pnpm 缓存和 store 放在工作区的 `.pnpm-cache/`、`.pnpm-store/`，均不纳入源码。`pnpm-workspace.yaml` 是包管理器配置，不是游戏运行配置。
+| 操作               | 键盘             | 标准映射手柄 | 触控            |
+| ------------------ | ---------------- | ------------ | --------------- |
+| 加速               | W / ↑            | RT           | 按住加速        |
+| 制动，停稳后倒车   | S / ↓            | LT           | 按住制动 / 倒车 |
+| 转向               | A、D / ←、→      | 左摇杆       | 按住左右箭头    |
+| 回到最近的赛道中心 | R / 重置车辆按钮 | Y            | 重置车辆按钮    |
+| 暂停 / 继续        | Esc / 暂停按钮   | Start        | 暂停 / 继续按钮 |
 
-## 当前可验收行为
+- 输入有持续按下和释放状态，转向与油门经过平滑处理。车速越高，最大转向角越小。
+- S 在前进时首先制动；绝对纵向车速低于 0.6 m/s 且持续 0.25 s 后才允许切换倒车驱动。倒车中按 W 也先刹停再换向。油门与制动同时按下时制动优先。
+- 页面失焦 / 隐藏时清空输入并暂停；恢复可见后需要手动继续。键盘需要重新按下；手柄必须先释放踏板并让摇杆回中，防止恢复时误加速。
+- 手柄目前仅接受 Gamepad API 的 `standard` 映射，左摇杆有 0.12 死区。触控按钮使用 pointer capture，移出按钮后释放也能正确结束输入。
+- 重置清空速度、角速度、操控状态、练习时间和里程，将车辆朝赛道方向放回最近的中心点。它不构成有效比赛圈数。
+- 当前仅有第三人称追尾视角。Space 手刹、漂移、四视角、音频与比赛计圈尚未实现。
 
-- 显式检查安全上下文、`navigator.gpu`，依次申请 GPUAdapter 和 GPUDevice。
-- 等待 WebGPURenderer 初始化，并确认实际 `isWebGPUBackend` 及设备身份匹配。
-- 强制禁止 Three.js 内建的 WebGL 回退；失败原因在界面显示，可重新检测。
-- 使用 TSL 节点材质、PBR 光照、阴影、色调映射及设备支持的抗锯齿持续渲染。
-- Rapier 动态球体受重力影响，落在固定平台上、反弹并静止；没有按帧直接修改物理位置。
-- 支持重新投放、暂停 / 继续、两档渲染精度。暂停只停止物理，界面与画面仍刷新。
-- ResizeObserver 同步视口和相机，DPR 上限分别为 2 和 1；页面隐藏时暂停循环，恢复时不补算隐藏期间的时间。
-- 设备丢失或 GPU 未捕获错误会停止运行、释放当前资源并允许重新启动。
-- UI 显示实际帧数、物理步数、帧率历史、视口尺寸、设备标识与 CPU 耗时。
+HUD 显示速度、自动挡位 / R、估算 RPM、油门 / 制动、练习时间与里程、车辆地图位置。计时是自由练习时间，不是圈速。画质选项控制 DPR 上限为 2 或 1。引擎诊断可展开查看真实帧数、物理步数、四轮接地状态、护栏接触次数与 CPU 耗时。
 
-物理 CPU 指标为最近一次固定步的耗时，渲染 CPU 指标为最近一次提交耗时，**均不是 GPU 执行时间**。初始化耗时从应用开始请求设备计至首帧提交，不包含 JS 模块下载。帧率是短窗口采样，不构成完整游戏的 60 FPS 承诺。
+## 物理与赛道
+
+车辆由 Rapier 动态底盘和官方 `DynamicRayCastVehicleController` 驱动。四条向下射线计算悬挂接触，前轮转向、后轮施加发动机力；普通制动力按固定步长转换为各轮制动冲量。另有空气阻力和接地时的简化下压力。没有通过逐帧设置位置或旋转来模拟驾驶。
+
+`src/vehicle/config.ts` 集中管理物理参数，使用米 / 秒 / 千克：质量 1180 kg、最大扭矩 410 N·m、轮径半径 0.34 m、五个前进挡、重心 / 惯性、悬挂、抓地力、制动力与输入平滑参数。驱动扭矩随 RPM 变化，并随接近速度上限逐渐衰减。自动挡位和 RPM 根据车速 / 传动比估算，未模拟完整离合器、传动轴与差速器动力学。
+
+车辆坐标为 **+Z 前、+Y 上、+X 右**。固定物理步长 1/60 秒，单渲染帧最多追赶 5 步。渲染插值前后位置与四元数姿态，同时插值轮胎滚动、前轮转向和悬挂长度。追尾镜头按速度拉远，平滑跟随并对固定碰撞体进行射线检测，避免穿入护栏。
+
+`src/track/Track.ts` 中的闭合 Catmull-Rom 中心线生成 240 个等距采样，供 16 m 宽道路、路肩、护栏、碰撞体、地图和重置点共用。道路为三角网格碰撞，连续护栏采用重叠的固定盒形碰撞体。场景中的植被、山体和建筑为隔离在护栏外的装饰物，不创建复杂碰撞体。当前测试赛道为平面原型，约 0.95 km；正式赛道的坡度、检查点和约三分钟圈速目标属于后续阶段。
 
 ## 架构
 
-| 路径                               | 职责                                                                        |
-| ---------------------------------- | --------------------------------------------------------------------------- |
-| `src/main.ts`、`src/ui/`           | Vue 入口、响应式验证界面、样式                                              |
-| `src/core/GameApplication.ts`      | 启动与销毁、RAF、暂停、缩放、错误处理；向 Vue 最多每秒推送 4 次常规运行快照 |
-| `src/core/FixedStep.ts`            | 1/60 秒 accumulator；单帧最多补算 5 步，返回插值系数                        |
-| `src/core/types.ts`                | UI 诊断快照契约                                                             |
-| `src/rendering/Renderer.ts`        | 申请和验证 GPU 设备、禁止回退、拥有并释放渲染器和设备                       |
-| `src/rendering/ValidationScene.ts` | 验证场景、TSL 材质、相机与场景资源释放                                      |
-| `src/physics/PhysicsWorld.ts`      | Rapier WASM 初始化、平台碰撞体、动态球体、前后物理状态与重置                |
-| `tests/`                           | 固定步长测试、物理碰撞测试与 Playwright 浏览器验收                          |
+| 路径                                | 职责                                                                            |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| `src/main.ts`、`src/ui/`            | Vue 入口、驾驶 HUD、暂停 / 错误界面和触控按钮                                   |
+| `src/core/GameApplication.ts`       | 初始化、资源生命周期、RAF / 固定物理步、暂停和缩放；以 10 Hz 向 UI 推送常规快照 |
+| `src/core/FixedStep.ts`、`types.ts` | 固定时间步与 UI 诊断契约                                                        |
+| `src/rendering/Renderer.ts`         | 严格 WebGPU 设备申请、实际后端校验、错误处理及释放                              |
+| `src/rendering/DrivingScene.ts`     | 场景、TSL 路面材质、光照 / 动态阴影、实例化环境                                 |
+| `src/physics/PhysicsWorld.ts`       | Rapier WASM、道路与护栏碰撞世界、接触事件                                       |
+| `src/vehicle/`                      | 物理配置、车辆控制器、换向与驱动、程序化视觉模型和车轮动画                      |
+| `src/input/InputManager.ts`         | 键盘、手柄、触控合成为归一化 `DriverInput`；输入释放与失焦处理                  |
+| `src/track/Track.ts`                | 配置化中心线及共用赛道几何数据                                                  |
+| `src/camera/ChaseCamera.ts`         | 平滑追尾和物理射线遮挡检测                                                      |
+| `tests/`                            | 物理 / 闭环驾驶、输入行为、实际浏览器回归                                       |
+| `public/favicon.svg`                | 本地站点图标                                                                    |
 
-依赖方向：Vue → GameApplication → Rendering / Physics。物理位置由 Rapier 更新，渲染使用前后物理状态插值。显式“重新投放”是唯一直接重置刚体位置的操作。当前只需要球体高度插值；车辆阶段再扩展位置和四元数姿态。
+Vue 只消费快照和发送用户指令，不承载每帧物理与渲染。物理世界拥有底盘和车辆控制器，视觉模型独立读取状态。后续方向盘 / 踏板可通过同一 `DriverInput` 契约接入，当前未实现硬件映射。
 
-应用模块按需加载，界面可先于引擎显示。销毁流程取消 RAF、断开 ResizeObserver、移除事件监听，释放 Rapier 世界、几何体、材质、阴影资源、渲染器和自建 GPUDevice。无需外部图片、字体或模型 CDN。
+退出或引擎故障时取消 RAF，移除 ResizeObserver 与输入 / 可见性监听，释放 Rapier 事件队列与世界、场景几何体 / 材质 / 纹理 / 实例化资源 / 阴影、渲染器和自建 GPUDevice。设备错误可从界面重新检测启动。
 
-## 依赖与 API 边界
+## WebGPU 与依赖边界
 
-已查询稳定版本并锁定 Vue 3.5.45、Vite 8.3.8、Three.js / 类型声明 0.187.0、Rapier 0.21.0。TypeScript 当前稳定主版本为 7，但 Vue 类型检查器 3.3.14 仍使用传统编译器入口，因此选用稳定的 **TypeScript 6.0.3**，避免使用不兼容的编译器 API。
+显式检查安全上下文和 `navigator.gpu`，依次申请 GPUAdapter、GPUDevice，等待 WebGPURenderer 初始化并核验 `isWebGPUBackend` 以及设备身份。禁止静默回退 WebGL。
 
-Three r187 的 WebGPURenderer 构造函数会覆盖传入的 `getFallback`。`StrictWebGPURenderer` 检查并固定实例上的 `_getFallback = null`，在接口发生变化时直接报错。此处是唯一刻意使用的 Three 内部接口，升级依赖时必须重新核对并运行故障注入测试。后端身份和设备对象还会在初始化后再次校验。
+Three r187 的构造函数会覆盖传入的 `getFallback`。`StrictWebGPURenderer` 检查并固定实例的 `_getFallback = null`，接口变化即报错。此处是唯一刻意使用的 Three 内部接口；升级依赖必须重新核对并运行后端故障注入测试。
 
-已核对 Rapier 0.21.0 的 `World.createVehicleController`、`DynamicRayCastVehicleController.addWheel`、`updateVehicle` 以及悬挂、发动机力、制动与侧向摩擦相关 API。下一阶段优先基于官方射线车辆控制器开发，目前尚未实现车辆或验证驾驶手感。
+当前锁定 Vue 3.5.45、Vite 8.3.8、Three.js / 类型声明 0.187.0、Rapier 0.21.0。Vue 类型检查器 3.3.14 使用传统编译器入口，因此采用兼容的稳定 TypeScript 6.0.3，而非 TypeScript 7。Rapier 0.21 的前向轴 setter 实际名称为 `setIndexForwardAxis`，实现按随包声明调用。
 
-API 核对依据为安装版本的官方源码、随包 README 和 TypeScript 声明；后续开发可参阅 [Three WebGPURenderer 文档](https://threejs.org/docs/pages/WebGPURenderer.html)、[TSL 文档](https://github.com/mrdoob/three.js/wiki/Three.js-Shading-Language)、[Rapier JavaScript 指南](https://rapier.rs/docs/user_guides/javascript/getting_started_js/) 与 [Vite 指南](https://vite.dev/guide/)。
+API 依据为安装版本的官方源码、README 与类型声明。参考：[Three WebGPURenderer](https://threejs.org/docs/pages/WebGPURenderer.html)、[TSL](https://github.com/mrdoob/three.js/wiki/Three.js-Shading-Language)、[Rapier JavaScript 指南](https://rapier.rs/docs/user_guides/javascript/getting_started_js/)、[Vite 指南](https://vite.dev/guide/)。
 
-## 验证与限制
+## 验证与边界
 
-自动化检查覆盖：不同渲染频率下固定物理步数一致；长帧追赶上限；实际重力、反弹、落地与重置；缺少 GPU、适配器 / 设备申请失败、后端初始化失败均不触发 WebGL；真实 WebGPU 渲染；暂停 / 重置；DPR 和窄屏适配；设备丢失与 GPU 错误后的释放及重启。
+自动化检查覆盖以下行为：
 
-当前验收环境为 Windows 上的 Chrome、NVIDIA Pascal WebGPU 适配器，未启用强制 GPU 或忽略显卡黑名单的浏览器参数。实际渲染路径检查控制台错误，并生成桌面和窄屏截图到忽略的 `test-results/`。其他显卡、浏览器和长时间内存稳定性仍需验证。
+- 30 / 60 / 144 Hz 渲染下固定步数一致，长帧追赶有界。
+- 四轮悬挂落地、油门产生加速度、制动先于倒车、倒车限速、反向换挡和转向符号。
+- 平滑转向、刚体与插值状态重置、持续油门撞护栏无法穿越。
+- 使用归一化油门 / 转向输入自动驾驶完整闭合赛道，检查无护栏接触且始终位于赛道内；这不是游戏内自动驾驶功能，也不是人工驾驶手感评价。
+- 缺少 GPU、适配器 / 设备申请失败及后端初始化失败均不触发 WebGL；设备丢失和未捕获 GPU 错误会释放资源并允许重启。
+- 实际浏览器中的键盘驾驶、倒车、暂停、重置、失焦输入清理、DPR / 窄屏与触控按下释放；标准手柄映射和回中锁通过模拟输入测试。
 
-Rapier compat 内嵌 WASM，当前引擎 JS 分块约 5.16 MB（gzip 约 1.89 MB），构建会提示较大分块。尚未进行引擎拆包、独立 WASM 托管、GPU 时间戳分析或完整游戏性能优化。生产部署应对静态文件启用 gzip / Brotli。
+验收环境为 Windows / Chrome / NVIDIA Pascal WebGPU，没有添加强制 GPU 或忽略显卡黑名单的参数。浏览器驾驶检查控制台错误并生成桌面、窄屏截图至忽略的 `test-results/`。物理与输入测试通过不能代替真实玩家对手感的评价；实体手柄、其他 GPU / 浏览器、真实移动设备与长时间内存稳定性仍需验收。
 
-## 下一阶段：车辆原型（未实现）
+物理 CPU 指标为最近一次车辆控制与世界固定步耗时，渲染 CPU 指标是提交耗时，**均不代表 GPU 执行时间**。尚未做 GPU 时间戳分析或完整游戏性能优化。Rapier compat 内嵌 WASM，使引擎 JS 分块约 5.18 MB（gzip 约 1.90 MB）；构建保留较大分块提示，尚未独立托管 WASM。
 
-创建一辆可驾驶原型和一条简单闭合赛道，基于 Rapier 射线悬挂实现油门、制动、近零速倒车、平滑转向与碰撞，再加入追尾相机和基础 HUD。验收重点为实际驾驶手感，暂不扩展三条正式赛道或完整比赛流程。
+## 下一阶段：车辆动力学（未实现）
 
-后续正式车辆使用具有授权的 GLB，约定米制尺度、独立前后车轮、车身、玻璃、灯组、刹车盘、驾驶舱和方向盘节点。导入时通过集中资源描述映射节点，保持物理与视觉模型解耦；当前程序化校准资产不作为正式赛车交付。漂移、四视角、三条主题赛道、音频、菜单与结算均属于后续未实现阶段。
+在原型基础上调校悬挂、前后抓地力和高速稳定性，引入基于侧滑角与后轮抓地恢复的手刹 / 漂移，再加入多视角，并通过实际驾驶测试验收。当前使用 Rapier 基础侧向摩擦，没有声称已完成漂移或精确轮胎模型。
+
+正式 GLB 资源在后续视觉阶段接入：采用有授权的米制模型，包含独立车轮、轮毂、刹车盘、车身、玻璃、灯组、驾驶舱、方向盘与后视镜；用资源描述映射节点，保持物理与视觉解耦。现有 `VehicleVisual` 仅为可替换的开发占位。三条主题赛道、检查点计圈、正式菜单 / 选择 / 结算、音频和完整游戏性能优化均未实现。
+
+每个阶段验收、文档同步后单独提交 Git；不自动推送远端。

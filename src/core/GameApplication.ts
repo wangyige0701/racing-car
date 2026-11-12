@@ -2,14 +2,23 @@ import { FixedStep } from "./FixedStep";
 import { initialDiagnostics } from "./types";
 import type { Diagnostics } from "./types";
 import { Graphics } from "../rendering/Renderer";
-import { ValidationScene } from "../rendering/ValidationScene";
+import { DrivingScene } from "../rendering/DrivingScene";
 import { PhysicsWorld } from "../physics/PhysicsWorld";
+import { VehiclePhysics } from "../vehicle/VehiclePhysics";
+import { Track } from "../track/Track";
+import { InputManager } from "../input/InputManager";
+import type { TouchControl } from "../input/InputManager";
+import { emptyInput } from "../vehicle/config";
 
-/** Runtime state stays outside Vue. The UI receives at most four snapshots per second. */
+/** Runtime state stays outside Vue; HUD snapshots are published at 10 Hz. */
 export class GameApplication {
   private graphics?: Graphics;
-  private scene?: ValidationScene;
+  private scene?: DrivingScene;
   private physics?: PhysicsWorld;
+  private vehicle?: VehiclePhysics;
+  private input?: InputManager;
+  private readonly idleInput = emptyInput();
+  private elapsed = 0;
   private observer?: ResizeObserver;
   private boot?: AbortController;
   private readonly clock = new FixedStep();
@@ -46,14 +55,20 @@ export class GameApplication {
       this.diagnostics.adapter = graphics.adapterName;
       this.diagnostics.message = "正在初始化 Rapier 物理世界";
       this.emit();
-      const physics = await PhysicsWorld.create();
+      const track = new Track();
+      const physics = await PhysicsWorld.create(track);
       if (signal.aborted) {
         physics.dispose();
         return;
       }
       this.physics = physics;
+      this.vehicle = new VehiclePhysics(physics.world, track);
       this.diagnostics.physicsReady = true;
-      this.scene = new ValidationScene();
+      this.diagnostics.trackLength = track.length;
+      this.diagnostics.mapPoints = track.samples.map((s) => `${s.x},${-s.z}`).join(" ");
+      this.elapsed = 0;
+      this.scene = new DrivingScene(track);
+      this.scene.update(this.vehicle, 1, 0, physics, true);
       this.host.append(graphics.renderer.domElement);
       this.resize();
       this.diagnostics.message = "正在编译 TSL 材质并提交首帧";
@@ -63,6 +78,11 @@ export class GameApplication {
       graphics.render(this.scene.scene, this.scene.camera);
       this.diagnostics.frames = 1;
       this.diagnostics.phase = "running";
+      this.input = new InputManager(
+        () => this.togglePause(),
+        () => this.resetVehicle(),
+        this.pauseForFocus,
+      );
       this.diagnostics.message = "WebGPU 后端与设备已验证";
       this.diagnostics.loadMs = performance.now() - started;
       this.observer = new ResizeObserver(this.resize);
@@ -78,13 +98,14 @@ export class GameApplication {
   }
 
   private readonly frame = (now: number): void => {
-    if (!this.graphics || !this.scene || !this.physics || this.disposed) return;
+    if (!this.graphics || !this.scene || !this.physics || !this.vehicle || this.disposed) return;
     try {
       const delta = (now - this.previousTime) / 1000;
       this.previousTime = now;
+      this.input?.poll();
       if (this.diagnostics.phase === "running") {
         const alpha = this.clock.advance(delta, this.simulate);
-        this.scene.ball.position.y = this.physics.interpolatedHeight(alpha);
+        this.scene.update(this.vehicle, alpha, delta, this.physics);
       }
       if (
         Math.min(window.devicePixelRatio || 1, this.pixelRatioCap) !== this.diagnostics.pixelRatio
@@ -94,8 +115,7 @@ export class GameApplication {
       this.graphics.render(this.scene.scene, this.scene.camera);
       this.diagnostics.renderSubmitMs = performance.now() - renderStart;
       this.diagnostics.frames++;
-      this.diagnostics.bodyHeight = this.physics.height;
-      if (now - this.lastPublish >= 250) {
+      if (now - this.lastPublish >= 100) {
         this.diagnostics.fps = Math.round(
           ((this.diagnostics.frames - this.sampledFrames) * 1000) / (now - this.lastPublish),
         );
@@ -110,9 +130,12 @@ export class GameApplication {
   };
 
   private readonly simulate = (dt: number): void => {
-    if (!this.physics) return;
+    if (!this.physics || !this.vehicle) return;
     const start = performance.now();
+    this.vehicle.beforeStep(dt, this.input?.read() ?? this.idleInput);
     this.physics.step(dt);
+    this.vehicle.afterStep(dt);
+    this.elapsed += dt;
     this.diagnostics.physicsMs = performance.now() - start;
     this.diagnostics.physicsSteps++;
   };
@@ -130,6 +153,7 @@ export class GameApplication {
   };
 
   private readonly visibilityChanged = (): void => {
+    if (document.hidden) this.pauseForFocus();
     cancelAnimationFrame(this.frameId);
     this.clock.reset();
     this.previousTime = this.lastPublish = performance.now();
@@ -146,16 +170,29 @@ export class GameApplication {
   togglePause(): void {
     if (!["running", "paused"].includes(this.diagnostics.phase)) return;
     this.diagnostics.phase = this.diagnostics.phase === "running" ? "paused" : "running";
+    this.input?.clear();
+    if (this.input) this.input.enabled = this.diagnostics.phase === "running";
     this.clock.reset();
     this.previousTime = performance.now();
     this.emit();
   }
 
-  resetBody(): void {
-    if (!this.physics || !this.scene) return;
-    this.physics.reset();
-    this.scene.ball.position.y = this.physics.height;
-    this.diagnostics.bodyHeight = this.physics.height;
+  private readonly pauseForFocus = (): void => {
+    this.input?.clear();
+    if (this.diagnostics.phase === "running") this.togglePause();
+  };
+
+  touch(control: TouchControl, pressed: boolean): void {
+    this.input?.setTouch(control, pressed);
+  }
+
+  resetVehicle(): void {
+    if (!this.physics || !this.scene || !this.vehicle) return;
+    this.input?.clear();
+    this.vehicle.reset();
+    this.physics.collisionCount = 0;
+    this.elapsed = 0;
+    this.scene.update(this.vehicle, 1, 0, this.physics, true);
     this.clock.reset();
     this.emit();
   }
@@ -179,6 +216,28 @@ export class GameApplication {
   };
 
   private emit(): void {
+    if (this.vehicle) {
+      const v = this.vehicle,
+        q = v.rotation;
+      Object.assign(this.diagnostics, {
+        speedKmh: v.speed * 3.6,
+        rpm: v.rpm,
+        gear: v.gear,
+        throttle: v.throttle,
+        brake: v.brake,
+        steer: v.steer,
+        groundedWheels: v.groundedWheels,
+        distance: v.distance,
+        elapsed: this.elapsed,
+        mapX: v.position.x,
+        mapY: -v.position.z,
+        heading:
+          (Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180) /
+          Math.PI,
+        collisions: this.physics?.collisionCount ?? 0,
+        inputSource: this.input?.source ?? "键盘",
+      });
+    }
     if (!this.disposed) this.publish({ ...this.diagnostics });
   }
 
@@ -189,6 +248,9 @@ export class GameApplication {
     this.observer = undefined;
     document.removeEventListener("visibilitychange", this.visibilityChanged);
     this.clock.reset();
+    this.input?.dispose();
+    this.input = undefined;
+    this.vehicle = undefined;
     this.physics?.dispose();
     this.physics = undefined;
     this.scene?.dispose();
