@@ -1,0 +1,8 @@
+node_modules/
+.pnpm-store/
+.pnpm-cache/
+dist/
+test-results/
+playwright-report/
+*.local
+
