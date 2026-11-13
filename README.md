@@ -45,7 +45,7 @@ pnpm format:check   # 格式检查
 - 手刹只制动后轮并减小后轮抓地力，同时切断相应比例的后轮驱动力；不会触发倒挡。入弯前减速，转向时短按手刹，松开后适度反打并控制油门恢复抓地。持续按住手刹可能导致停车或甩尾。
 - C 按追尾 → 驾驶舱 → 引擎盖 → 保险杠循环。键盘重复事件与持续按住手柄按钮不会连续切换；暂停时也可切换观察。
 
-HUD 显示速度、自动挡位 / R、估算 RPM、油门 / 制动、练习时间与里程、车辆地图位置。计时是自由练习时间，不是圈速。画质选项控制 DPR 上限为 2 或 1。引擎诊断可展开查看真实帧数、物理步数、四轮接地状态、护栏接触次数与 CPU 耗时。
+HUD 显示速度、自动挡位 / R、估算 RPM、油门 / 制动、练习时间与里程、车辆地图位置。计时是自由练习时间，不是圈速。高 / 均衡 / 流畅画质分别控制 DPR、阴影、植被细节距离与特效，触控默认均衡；预算及资源说明见 [场景与画质](docs/rendering.md)。引擎诊断可展开查看真实帧数、物理步数、四轮接地状态、护栏接触次数与 CPU 耗时。
 
 动力学 HUD 显示侧滑角、手刹 / 漂移 / 抓地恢复状态与累计漂移时间；诊断面板同时显示后轮抓地系数（相对基准值）、烟雾粒子数与音频状态。左舵驾驶舱有随转向转动的方向盘，以及显示速度、RPM 和挡位的实时屏幕。所有车内视角均压缩 DOM 仪表与地图，避免重复大号仪表遮挡道路。
 
@@ -87,23 +87,23 @@ HUD 显示速度、自动挡位 / R、估算 RPM、油门 / 制动、练习时�
 
 ## 架构
 
-| 路径                                                                 | 职责                                                                            |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `src/main.ts`、`src/ui/`                                             | Vue 入口、驾驶 HUD、暂停 / 错误界面和触控按钮                                   |
-| `src/core/GameApplication.ts`                                        | 初始化、资源生命周期、RAF / 固定物理步、暂停和缩放；以 10 Hz 向 UI 推送常规快照 |
-| `src/core/FixedStep.ts`、`types.ts`                                  | 固定时间步与 UI 诊断契约                                                        |
-| `src/rendering/Renderer.ts`                                          | 严格 WebGPU 设备申请、实际后端校验、错误处理及释放                              |
-| `src/rendering/DrivingScene.ts`                                      | 场景、TSL 路面材质、PBR 环境光 / 动态阴影、实例化环境                           |
-| `src/physics/PhysicsWorld.ts`                                        | Rapier WASM、道路与护栏碰撞世界、接触事件                                       |
-| `src/vehicle/`                                                       | 物理配置、悬挂稳定、换向与驱动、漂移抓地控制、GLB 绑定、内饰仪表和车轮动画      |
-| `src/audio/VehicleAudio.ts`                                          | 用户手势解锁、发动机 / 轮胎 / 风噪 / 接触合成音、静音与释放                     |
-| `src/rendering/TireSmoke.ts`、`ContactSparks.ts`、`dispose.ts`       | 有界烟雾 / 接触火花粒子池、共享 GLB 材质 / 全部 PBR 纹理释放                    |
-| `scripts/prepare-vehicle.mjs`、`public/assets/vehicles/car-concept/` | 车辆优化流程、运行时 GLB 与授权文件                                             |
-| `src/input/InputManager.ts`                                          | 键盘、手柄、触控合成为归一化 `DriverInput`；输入释放与失焦处理                  |
-| `src/track/Track.ts`                                                 | 配置化中心线及共用赛道几何数据                                                  |
-| `src/camera/`                                                        | 四视角锚点、相机平滑切换、追尾和物理射线遮挡检测                                |
-| `tests/`                                                             | 物理 / 闭环驾驶、输入行为、实际浏览器回归                                       |
-| `public/favicon.svg`                                                 | 本地站点图标                                                                    |
+| 路径                                                                                              | 职责                                                                            |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `src/main.ts`、`src/ui/`                                                                          | Vue 入口、驾驶 HUD、暂停 / 错误界面和触控按钮                                   |
+| `src/core/GameApplication.ts`                                                                     | 初始化、资源生命周期、RAF / 固定物理步、暂停和缩放；以 10 Hz 向 UI 推送常规快照 |
+| `src/core/FixedStep.ts`、`types.ts`                                                               | 固定时间步与 UI 诊断契约                                                        |
+| `src/rendering/Renderer.ts`                                                                       | 严格 WebGPU 设备申请、实际后端校验、错误处理及释放                              |
+| `src/rendering/DrivingScene.ts`、`Environment.ts`、`RoadSurface.ts`、`TireMarks.ts`、`quality.ts` | 场景、路面纹理、轮胎痕迹、实例化环境及距离细节、画质预算                        |
+| `src/physics/PhysicsWorld.ts`                                                                     | Rapier WASM、道路与护栏碰撞世界、接触事件                                       |
+| `src/vehicle/`                                                                                    | 物理配置、悬挂稳定、换向与驱动、漂移抓地控制、GLB 绑定、内饰仪表和车轮动画      |
+| `src/audio/VehicleAudio.ts`                                                                       | 用户手势解锁、发动机 / 轮胎 / 风噪 / 接触合成音、静音与释放                     |
+| `src/rendering/TireSmoke.ts`、`ContactSparks.ts`、`dispose.ts`                                    | 有界烟雾 / 接触火花粒子池、共享 GLB 材质 / 全部 PBR 纹理释放                    |
+| `scripts/prepare-vehicle.mjs`、`public/assets/vehicles/car-concept/`                              | 车辆优化流程、运行时 GLB 与授权文件                                             |
+| `src/input/InputManager.ts`                                                                       | 键盘、手柄、触控合成为归一化 `DriverInput`；输入释放与失焦处理                  |
+| `src/track/Track.ts`                                                                              | 配置化中心线及共用赛道几何数据                                                  |
+| `src/camera/`                                                                                     | 四视角锚点、相机平滑切换、追尾和物理射线遮挡检测                                |
+| `tests/`                                                                                          | 物理 / 闭环驾驶、输入行为、实际浏览器回归                                       |
+| `public/favicon.svg`                                                                              | 本地站点图标                                                                    |
 
 Vue 只消费快照和发送用户指令，不承载每帧物理与渲染。物理世界拥有底盘和车辆控制器，视觉模型独立读取状态。后续方向盘 / 踏板可通过同一 `DriverInput` 契约接入，当前未实现硬件映射。
 

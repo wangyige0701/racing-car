@@ -4,12 +4,13 @@ import { initialDiagnostics } from "../core/types";
 import { CAMERA_LABELS } from "../camera/config";
 import type { GameApplication } from "../core/GameApplication";
 import type { TouchControl } from "../input/InputManager";
+import { defaultQuality, type Quality } from "../rendering/quality";
 import TouchSteering from "./TouchSteering.vue";
 import { DEFAULT_CAMERA_SETTINGS } from "../camera/config";
 
 const viewport = ref<HTMLDivElement>();
 const diagnostics = shallowRef(initialDiagnostics());
-const quality = ref<"high" | "balanced">("high");
+const quality = ref<Quality>(defaultQuality());
 const cameraSettings = ref({ ...DEFAULT_CAMERA_SETTINGS });
 function changeCamera() {
   application?.setCameraSettings(cameraSettings.value);
@@ -115,6 +116,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             >
               <option value="high">高 · 2×</option>
               <option value="balanced">均衡 · 1×</option>
+              <option value="economy">流畅 · 1×</option>
             </select></label
           >
           <button class="button secondary" :disabled="!ready" @click="application?.resetVehicle()">
@@ -362,6 +364,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
               <select v-model="quality" aria-label="横屏画质" @change="changeQuality">
                 <option value="high">高画质</option>
                 <option value="balanced">均衡画质</option>
+                <option value="economy">流畅画质</option>
               </select>
             </div>
             <button class="button primary" @click="application?.togglePause()">

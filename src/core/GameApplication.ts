@@ -12,6 +12,7 @@ import { InputManager } from "../input/InputManager";
 import type { TouchControl } from "../input/InputManager";
 import { emptyInput } from "../vehicle/config";
 import type { CameraSettings } from "../camera/config";
+import { QUALITY, defaultQuality, type Quality } from "../rendering/quality";
 import { DEFAULT_CAMERA_SETTINGS } from "../camera/config";
 
 /** Runtime state stays outside Vue; HUD snapshots are published at 10 Hz. */
@@ -32,7 +33,8 @@ export class GameApplication {
   private previousTime = 0;
   private lastPublish = 0;
   private sampledFrames = 0;
-  private pixelRatioCap = 2;
+  private quality = defaultQuality();
+  private pixelRatioCap: number = QUALITY[this.quality].dpr;
   private cameraSettings = { ...DEFAULT_CAMERA_SETTINGS };
   private disposed = false;
   private releasing: Promise<void> = Promise.resolve();
@@ -78,6 +80,7 @@ export class GameApplication {
       const visual = await VehicleVisual.load(signal);
       this.scene = new DrivingScene(track, visual);
       this.scene.cameras.setSettings(this.cameraSettings);
+      this.scene.setQuality(this.quality);
       this.scene.update(this.vehicle, 1, 0, physics, true);
       this.host.append(graphics.renderer.domElement);
       this.resize();
@@ -183,8 +186,10 @@ export class GameApplication {
       this.frameId = requestAnimationFrame(this.frame);
   };
 
-  setQuality(quality: "high" | "balanced"): void {
-    this.pixelRatioCap = quality === "high" ? 2 : 1;
+  setQuality(quality: Quality): void {
+    this.quality = quality;
+    this.pixelRatioCap = QUALITY[quality].dpr;
+    this.scene?.setQuality(quality);
     this.resize();
   }
 

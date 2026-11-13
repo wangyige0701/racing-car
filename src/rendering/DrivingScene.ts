@@ -4,8 +4,6 @@ import {
   BufferGeometry,
   CanvasTexture,
   Color,
-  ConeGeometry,
-  CylinderGeometry,
   DirectionalLight,
   Fog,
   Group,
@@ -23,6 +21,10 @@ import {
 } from "three/webgpu";
 import { disposeObject } from "./dispose";
 import { TireSmoke } from "./TireSmoke";
+import { Environment, terrainHeight } from "./Environment";
+import { roadSurface } from "./RoadSurface";
+import { TireMarks } from "./TireMarks";
+import { QUALITY, type Quality } from "./quality";
 import { ContactSparks } from "./ContactSparks";
 import { color, mix, positionWorld, sin } from "three/tsl";
 import { VehicleVisual } from "../vehicle/VehicleVisual";
@@ -37,6 +39,8 @@ export class DrivingScene {
   readonly vehicle: VehicleVisual;
   readonly smoke = new TireSmoke();
   readonly sparks = new ContactSparks();
+  readonly marks = new TireMarks();
+  readonly scenery: Environment;
   private readonly environment: DataTexture;
   private lastImpact = 0;
   readonly sun = new DirectionalLight("#fff0c8", 3.6);
@@ -46,6 +50,8 @@ export class DrivingScene {
 
   constructor(track: Track, vehicle: VehicleVisual) {
     this.vehicle = vehicle;
+    this.scenery = new Environment(track);
+    this.scene.add(this.scenery.root, this.marks.root);
     // Small generated sky reflection, prefiltered by WebGPU for the GLB PBR paint.
     const pixels = new Uint8Array(256 * 128 * 4);
     const sky = new Color("#a6c5db"),
@@ -71,7 +77,7 @@ export class DrivingScene {
     this.scene.environmentIntensity = 0.85;
     this.scene.background = new Color("#b9d4dc");
     this.scene.fog = new Fog("#b9d4dc", 170, 780);
-    this.scene.add(new HemisphereLight("#f6f5df", "#4b6345", 2.7));
+    this.scene.add(new HemisphereLight("#f6f5df", "#4b6345", 1.6));
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     Object.assign(this.sun.shadow.camera, {
@@ -87,30 +93,35 @@ export class DrivingScene {
 
     const grass = new MeshStandardNodeMaterial({ roughness: 1 });
     grass.colorNode = mix(
-      color("#76855a"),
-      color("#88996a"),
+      color("#5f7650"),
+      color("#8b965f"),
       sin(positionWorld.x.mul(0.1))
         .mul(sin(positionWorld.z.mul(0.13)))
         .mul(0.5)
         .add(0.5),
     );
-    const ground = this.mesh(new PlaneGeometry(1600, 1600), grass);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.05;
+    const terrain = new PlaneGeometry(1600, 1600, 96, 96);
+    terrain.rotateX(-Math.PI / 2);
+    const terrainPositions = terrain.getAttribute("position");
+    for (let i = 0; i < terrainPositions.count; i++)
+      terrainPositions.setY(
+        i,
+        terrainHeight(track, terrainPositions.getX(i), terrainPositions.getZ(i)),
+      );
+    terrain.computeVertexNormals();
+    const ground = this.mesh(terrain, grass);
     ground.receiveShadow = true;
 
-    const roadMaterial = new MeshStandardNodeMaterial({ roughness: 0.95 });
-    roadMaterial.colorNode = mix(
-      color("#414b4e"),
-      color("#444d4f"),
-      sin(positionWorld.x.mul(0.85))
-        .mul(sin(positionWorld.z.mul(0.72)))
-        .mul(0.5)
-        .add(0.5),
-    );
+    const roadMaterial = roadSurface();
     const roadGeometry = new BufferGeometry();
     roadGeometry.setAttribute("position", new BufferAttribute(track.vertices, 3));
     roadGeometry.setIndex(new BufferAttribute(track.indices, 1));
+    const roadUV = new Float32Array((track.vertices.length / 3) * 2);
+    for (let i = 0; i < track.vertices.length / 3; i++) {
+      roadUV[i * 2] = track.vertices[i * 3] / 4;
+      roadUV[i * 2 + 1] = track.vertices[i * 3 + 2] / 4;
+    }
+    roadGeometry.setAttribute("uv", new BufferAttribute(roadUV, 2));
     roadGeometry.computeVertexNormals();
     const road = this.mesh(roadGeometry, roadMaterial);
     road.receiveShadow = true;
@@ -186,60 +197,6 @@ export class DrivingScene {
   }
 
   private addLandscape(track: Track): void {
-    const dummy = new Object3D();
-    const bark = new MeshStandardNodeMaterial({ color: "#665545", roughness: 1 });
-    const foliage = new MeshStandardNodeMaterial({
-      color: "#3b5b43",
-      roughness: 1,
-      flatShading: true,
-    });
-    const trunks = new InstancedMesh(new CylinderGeometry(0.25, 0.4, 3, 5), bark, 230);
-    const crowns = new InstancedMesh(new ConeGeometry(2.3, 7, 7), foliage, 230);
-    let seed = 851;
-    const random = () => {
-      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      return seed / 4294967296;
-    };
-    for (let i = 0; i < 230; i++) {
-      let x = 0,
-        z = 0;
-      do {
-        x = (random() - 0.5) * 750;
-        z = (random() - 0.5) * 750;
-      } while (
-        Math.hypot(
-          x - track.samples[track.nearest(x, z)].x,
-          z - track.samples[track.nearest(x, z)].z,
-        ) < 23
-      );
-      const scale = 0.8 + random() * 1.3;
-      dummy.position.set(x, 1.5 * scale, z);
-      dummy.scale.setScalar(scale);
-      dummy.rotation.set(0, random() * 6.28, 0);
-      dummy.updateMatrix();
-      trunks.setMatrixAt(i, dummy.matrix);
-      dummy.position.y = 5.1 * scale;
-      dummy.updateMatrix();
-      crowns.setMatrixAt(i, dummy.matrix);
-      crowns.setColorAt(i, new Color().setHSL(0.28 + random() * 0.04, 0.22, 0.3 + random() * 0.1));
-    }
-    trunks.castShadow = crowns.castShadow = true;
-    this.scene.add(trunks, crowns);
-    const hills = new InstancedMesh(
-      new ConeGeometry(1, 1, 9),
-      new MeshStandardNodeMaterial({ color: "#647e70", roughness: 1, flatShading: true }),
-      20,
-    );
-    for (let i = 0; i < 20; i++) {
-      const angle = (i / 20) * Math.PI * 2,
-        height = 65 + random() * 110;
-      dummy.position.set(Math.cos(angle) * 620, height / 2 - 8, Math.sin(angle) * 620);
-      dummy.scale.set(95 + random() * 90, height, 95 + random() * 90);
-      dummy.rotation.set(0, random() * 6.28, 0);
-      dummy.updateMatrix();
-      hills.setMatrixAt(i, dummy.matrix);
-    }
-    this.scene.add(hills);
     const building = new Group();
     const start = track.samples[12];
     building.position.set(start.x + start.tz * 27, 0, start.z - start.tx * 27);
@@ -256,6 +213,12 @@ export class DrivingScene {
     windows.position.y = 3.2;
     const roof = this.mesh(new BoxGeometry(13, 0.3, 35), wall, building);
     roof.position.y = 5.1;
+    for (let i = 0; i < 6; i++) {
+      const door = this.mesh(new BoxGeometry(0.04, 3.2, 3.5), glass, building);
+      door.position.set(-6.03, 1.6, -13 + i * 5.2);
+      const trim = this.mesh(new BoxGeometry(0.12, 0.18, 3.7), wall, building);
+      trim.position.set(-6.08, 3.25, -13 + i * 5.2);
+    }
     building.traverse((o) => {
       if (o instanceof Mesh) {
         o.castShadow = true;
@@ -329,6 +292,9 @@ export class DrivingScene {
     this.updateCamera(vehicle, dt, physics, snap);
     if (snap) this.smoke.clear();
     else this.smoke.update(vehicle, this.camera, dt);
+    if (snap) this.marks.clear();
+    else this.marks.update(vehicle);
+    this.scenery.update(this.vehicle.root.position, dt);
     if (snap) this.sparks.clear();
     else this.sparks.update(physics, dt);
     this.sun.target.position.copy(this.vehicle.root.position);
@@ -344,6 +310,20 @@ export class DrivingScene {
     this.cameras.setMotion(vehicle.steer, vehicle.acceleration);
     this.cameras.update(this.vehicle.root, vehicle.speed, dt, physics.world, snap);
     this.vehicle.setView(this.cameras.mode);
+  }
+
+  setQuality(quality: Quality): void {
+    const profile = QUALITY[quality];
+    this.sun.castShadow = profile.shadow > 0;
+    const size = profile.shadow || 512;
+    if (this.sun.shadow.mapSize.x !== size) {
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+      this.sun.shadow.mapSize.set(size, size);
+    }
+    this.scenery.detailDistance = profile.treeDistance;
+    this.smoke.emissionScale = profile.smoke;
+    this.sparks.root.visible = quality !== "economy";
   }
 
   dispose(): void {

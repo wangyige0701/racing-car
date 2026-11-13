@@ -25,6 +25,7 @@ export class TireSmoke {
   private cursor = 0;
   private accumulator = 0;
   count = 0;
+  emissionScale = 1;
 
   constructor() {
     const canvas = document.createElement("canvas");
@@ -55,7 +56,7 @@ export class TireSmoke {
     dt = Math.min(0.05, Math.max(0, dt));
     const active = vehicle.drift.active || (vehicle.handbrake > 0.5 && Math.abs(vehicle.speed) > 6);
     if (active) {
-      this.accumulator += dt * 40;
+      this.accumulator += dt * 40 * this.emissionScale;
       while (this.accumulator >= 1) {
         this.accumulator--;
         for (let wheel = 2; wheel < 4; wheel++) {
