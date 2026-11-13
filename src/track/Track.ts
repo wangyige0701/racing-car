@@ -21,6 +21,7 @@ export class Track {
   readonly mapViewBox: string;
   readonly vertices: Float32Array;
   readonly indices: Uint32Array;
+  readonly corners: number[];
 
   constructor(id: TrackId = "practice") {
     this.definition = TRACKS.find((t) => t.id === id) ?? TRACKS[0];
@@ -37,6 +38,32 @@ export class Track {
       const t = curve.getTangentAt(i / this.definition.samples).normalize();
       return { x: p.x, y: p.y, z: p.z, tx: t.x, ty: t.y, tz: t.z };
     });
+    const count = this.samples.length;
+    const candidates = this.samples
+      .map((s, i) => {
+        const next = this.samples[(i + 1) % count];
+        return {
+          index: i,
+          bend: Math.abs(
+            Math.atan2(s.tx * next.tz - s.tz * next.tx, s.tx * next.tx + s.tz * next.tz),
+          ),
+        };
+      })
+      .sort((a, b) => b.bend - a.bend);
+    this.corners = [];
+    for (const candidate of candidates) {
+      if (
+        this.corners.every(
+          (i) =>
+            (Math.min(Math.abs(i - candidate.index), count - Math.abs(i - candidate.index)) *
+              this.length) /
+              count >
+            150,
+        )
+      )
+        this.corners.push(candidate.index);
+      if (this.corners.length === 6) break;
+    }
     const minX = Math.min(...this.samples.map((s) => s.x)) - 30,
       minZ = Math.min(...this.samples.map((s) => -s.z)) - 30;
     const width = Math.max(...this.samples.map((s) => s.x)) - minX + 30,

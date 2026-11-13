@@ -129,7 +129,7 @@ export class Environment {
       this.root.add(water);
     }
     if (track.definition.theme === "city") this.addCity(track, random);
-    for (const corner of [0.25, 0.54, 0.83].map((t) => Math.floor(t * track.samples.length)))
+    for (const corner of track.corners)
       for (const distance of [100, 50]) {
         const index =
           (corner -

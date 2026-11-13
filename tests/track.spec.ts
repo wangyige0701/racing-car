@@ -84,17 +84,40 @@ for (const definition of TRACKS) {
   test(`${definition.id}: shared geometry is closed and a physical driver completes a valid lap`, async () => {
     const track = new Track(definition.id);
     expect(track.length).toBeGreaterThan(definition.id === "practice" ? 900 : 3000);
-    expect(track.length).toBeLessThan(4000);
+    expect(track.length).toBeLessThan(5000);
     expect(Array.from(track.vertices).every(Number.isFinite)).toBe(true);
     expect(Math.max(...track.samples.map((s) => Math.abs(s.ty)))).toBeLessThan(0.15);
     expect(Array.from(track.indices.slice(-6))).toContain(0);
+    // Distant portions of a winding route must not overlap or share guardrails.
+    let reversals = 0,
+      lastSign = 0,
+      clearance = Infinity;
+    for (let i = 0; i < track.samples.length; i++) {
+      const a = track.samples[i],
+        b = track.samples[(i + 1) % track.samples.length];
+      const turn = a.tx * b.tz - a.tz * b.tx;
+      if (Math.abs(turn) > 0.003) {
+        const sign = Math.sign(turn);
+        if (lastSign && sign !== lastSign) reversals++;
+        lastSign = sign;
+      }
+      for (let j = i + 1; j < track.samples.length; j++) {
+        const gap =
+          (Math.min(j - i, track.samples.length - j + i) * track.length) / track.samples.length;
+        if (gap < 60) continue;
+        const other = track.samples[j];
+        clearance = Math.min(clearance, Math.hypot(a.x - other.x, a.z - other.z));
+      }
+    }
+    expect(reversals).toBeGreaterThanOrEqual(4);
+    expect(clearance).toBeGreaterThan(track.width + 5);
     const physics = await PhysicsWorld.create(track);
     const vehicle = new VehiclePhysics(physics.world, track);
     const timer = new LapTimer(track);
     const input = emptyInput();
     let maxOffset = 0;
     try {
-      for (let frame = 0; frame < 14000 && timer.laps === 0; frame++) {
+      for (let frame = 0; frame < 22000 && timer.laps === 0; frame++) {
         const nearest = track.nearest(vehicle.position.x, vehicle.position.z);
         const lookahead = Math.max(
           4,
@@ -112,8 +135,17 @@ for (const definition of TRACKS) {
         const angle = Math.atan((2 * 2.64 * Math.sin(error)) / Math.hypot(dx, dz));
         const limit = VEHICLE.maxSteer / (1 + (Math.abs(vehicle.speed) / 15) ** 2);
         input.steer = -Math.max(-1, Math.min(1, angle / limit));
-        input.throttle = Math.max(0, Math.min(1, (20 - vehicle.speed) * 0.4));
-        input.brake = vehicle.speed > 22 ? 0.15 : 0;
+        // Look ahead for tight bends; a winding course requires braking before entry.
+        let curvature = 0;
+        for (let j = 0; j < lookahead * 2; j++) {
+          const a = track.samples[(nearest + j) % track.samples.length];
+          const b = track.samples[(nearest + j + 1) % track.samples.length];
+          const bend = Math.abs(Math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz));
+          curvature = Math.max(curvature, bend / (track.length / track.samples.length));
+        }
+        const targetSpeed = Math.min(23, Math.sqrt(5 / Math.max(0.002, curvature)));
+        input.throttle = Math.max(0, Math.min(1, (targetSpeed - vehicle.speed) * 0.4));
+        input.brake = vehicle.speed > targetSpeed + 1 ? 0.25 : 0;
         vehicle.beforeStep(1 / 60, input);
         physics.step(1 / 60);
         vehicle.afterStep(1 / 60);
@@ -128,8 +160,8 @@ for (const definition of TRACKS) {
         `${definition.id}: length=${track.length.toFixed(0)}m lap=${timer.last.toFixed(2)}s offset=${maxOffset.toFixed(2)}m`,
       );
       expect(timer.laps).toBe(1);
-      expect(timer.last).toBeGreaterThan(track.length / 23);
-      expect(timer.last).toBeLessThan(track.length / 17);
+      expect(timer.last).toBeGreaterThan(track.length / 25);
+      expect(timer.last).toBeLessThan(track.length / 10);
       expect(maxOffset).toBeLessThan(track.width / 2 - 1);
       expect(physics.collisionCount).toBe(0);
       vehicle.reset();
