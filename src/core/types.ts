@@ -1,4 +1,5 @@
 import type { CameraMode } from "../camera/config";
+import type { TrackId } from "../track/catalog";
 export type BootPhase = "starting" | "running" | "paused" | "error";
 
 export interface Diagnostics {
@@ -29,6 +30,17 @@ export interface Diagnostics {
   impactStrength: number;
   collisionRecent: boolean;
   trackLength: number;
+  trackId: TrackId;
+  trackName: string;
+  mapViewBox: string;
+  lapTime: number;
+  lastLap: number;
+  bestLap: number;
+  laps: number;
+  nextCheckpoint: number;
+  lapStarted: boolean;
+  lapValid: boolean;
+  wrongWay: boolean;
   mapPoints: string;
   mapX: number;
   mapY: number;
@@ -74,6 +86,17 @@ export function initialDiagnostics(): Diagnostics {
     impactStrength: 0,
     collisionRecent: false,
     trackLength: 0,
+    trackId: "practice",
+    trackName: "松岭试车场",
+    mapViewBox: "-135 -190 310 380",
+    lapTime: 0,
+    lastLap: 0,
+    bestLap: 0,
+    laps: 0,
+    nextCheckpoint: 0,
+    lapStarted: false,
+    lapValid: true,
+    wrongWay: false,
     mapPoints: "",
     mapX: 0,
     mapY: 0,

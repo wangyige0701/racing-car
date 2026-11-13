@@ -39,8 +39,8 @@ export class PhysicsWorld {
     for (const segment of track.barrierSegments()) {
       const collider = this.world.createCollider(
         RAPIER.ColliderDesc.cuboid(0.23, 0.65, segment.length / 2)
-          .setTranslation(segment.x, 0.65, segment.z)
-          .setRotation({ x: 0, y: Math.sin(segment.yaw / 2), z: 0, w: Math.cos(segment.yaw / 2) })
+          .setTranslation(segment.x, segment.y + 0.65, segment.z)
+          .setRotation(segment.rotation)
           .setFriction(0.15)
           .setRestitution(0.08),
       );

@@ -21,7 +21,7 @@ import {
 } from "three/webgpu";
 import { disposeObject } from "./dispose";
 import { TireSmoke } from "./TireSmoke";
-import { Environment, terrainHeight } from "./Environment";
+import { Environment, terrainGeometry } from "./Environment";
 import { roadSurface } from "./RoadSurface";
 import { TireMarks } from "./TireMarks";
 import { QUALITY, type Quality } from "./quality";
@@ -93,23 +93,14 @@ export class DrivingScene {
 
     const grass = new MeshStandardNodeMaterial({ roughness: 1 });
     grass.colorNode = mix(
-      color("#5f7650"),
-      color("#8b965f"),
+      color(track.definition.theme === "city" ? "#747d78" : "#5f7650"),
+      color(track.definition.theme === "city" ? "#808a82" : "#8b965f"),
       sin(positionWorld.x.mul(0.1))
         .mul(sin(positionWorld.z.mul(0.13)))
         .mul(0.5)
         .add(0.5),
     );
-    const terrain = new PlaneGeometry(1600, 1600, 96, 96);
-    terrain.rotateX(-Math.PI / 2);
-    const terrainPositions = terrain.getAttribute("position");
-    for (let i = 0; i < terrainPositions.count; i++)
-      terrainPositions.setY(
-        i,
-        terrainHeight(track, terrainPositions.getX(i), terrainPositions.getZ(i)),
-      );
-    terrain.computeVertexNormals();
-    const ground = this.mesh(terrain, grass);
+    const ground = this.mesh(terrainGeometry(track), grass);
     ground.receiveShadow = true;
 
     const roadMaterial = roadSurface();
@@ -143,23 +134,23 @@ export class DrivingScene {
     );
     const dummy = new Object3D();
     segments.forEach((s, i) => {
-      dummy.position.set(s.x, 0.65, s.z);
-      dummy.rotation.set(0, s.yaw, 0);
+      dummy.position.set(s.x, s.y + 0.65, s.z);
+      dummy.quaternion.copy(s.rotation);
       dummy.scale.set(0.46, 1.3, s.length);
       dummy.updateMatrix();
       barriers.setMatrixAt(i, dummy.matrix);
     });
     track.samples.forEach((s, i) => {
       const n = track.samples[(i + 1) % track.samples.length];
-      const length = Math.hypot(n.x - s.x, n.z - s.z) + 0.12;
-      const yaw = Math.atan2(n.x - s.x, n.z - s.z);
+      const length = Math.hypot(n.x - s.x, n.y - s.y, n.z - s.z) + 0.12;
+      const rotation = track.orientation(n.x - s.x, n.y - s.y, n.z - s.z);
       const cx = (s.x + n.x) / 2,
         cz = (s.z + n.z) / 2;
       [-1, 1].forEach((side, j) => {
-        dummy.rotation.set(0, yaw, 0);
+        dummy.quaternion.copy(rotation);
         dummy.position.set(
           cx + s.tz * (track.width / 2 + 0.35) * side,
-          0.015,
+          (s.y + n.y) / 2 + 0.015,
           cz - s.tx * (track.width / 2 + 0.35) * side,
         );
         dummy.scale.set(0.7, 0.04, length);
@@ -168,7 +159,7 @@ export class DrivingScene {
         curbs.setColorAt(i * 2 + j, new Color(i % 2 ? "#e4e3d4" : "#9b3e35"));
         dummy.position.set(
           cx + s.tz * (track.width / 2 - 0.2) * side,
-          0.012,
+          (s.y + n.y) / 2 + 0.012,
           cz - s.tx * (track.width / 2 - 0.2) * side,
         );
         dummy.scale.set(0.12, 0.01, length);
@@ -176,8 +167,8 @@ export class DrivingScene {
         lines.setMatrixAt(i * 2 + j, dummy.matrix);
       });
       if (i % 2 === 0) {
-        dummy.position.set(s.x, 0.008, s.z);
-        dummy.rotation.set(0, Math.atan2(s.tx, s.tz), 0);
+        dummy.position.set(s.x, s.y + 0.008, s.z);
+        dummy.quaternion.copy(track.orientation(s.tx, s.ty, s.tz));
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
         dashes.setMatrixAt(i / 2, dummy.matrix);
@@ -199,7 +190,7 @@ export class DrivingScene {
   private addLandscape(track: Track): void {
     const building = new Group();
     const start = track.samples[12];
-    building.position.set(start.x + start.tz * 27, 0, start.z - start.tx * 27);
+    building.position.set(start.x + start.tz * 27, start.y, start.z - start.tx * 27);
     building.rotation.y = Math.atan2(start.tx, start.tz);
     const wall = new MeshStandardNodeMaterial({ color: "#b9baaa", roughness: 0.85 });
     const glass = new MeshStandardNodeMaterial({
@@ -229,10 +220,10 @@ export class DrivingScene {
   }
 
   private addStartGate(track: Track): void {
-    const start = track.samples[17];
+    const start = track.samples[track.startIndex];
     const gate = new Group();
-    gate.position.set(start.x, 0, start.z);
-    gate.rotation.y = Math.atan2(start.tx, start.tz);
+    gate.position.set(start.x, start.y, start.z);
+    gate.quaternion.copy(track.orientation(start.tx, start.ty, start.tz));
     const dark = new MeshStandardNodeMaterial({ color: "#293a35", metalness: 0.4, roughness: 0.5 });
     for (const x of [-10, 10]) {
       const post = this.mesh(new BoxGeometry(0.45, 5.5, 0.45), dark, gate);

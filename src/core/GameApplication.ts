@@ -8,6 +8,8 @@ import { VehiclePhysics } from "../vehicle/VehiclePhysics";
 import { VehicleVisual } from "../vehicle/VehicleVisual";
 import { VehicleAudio } from "../audio/VehicleAudio";
 import { Track } from "../track/Track";
+import { TRACKS, type TrackId } from "../track/catalog";
+import { LapTimer } from "../track/LapTimer";
 import { InputManager } from "../input/InputManager";
 import type { TouchControl } from "../input/InputManager";
 import { emptyInput } from "../vehicle/config";
@@ -21,6 +23,9 @@ export class GameApplication {
   private scene?: DrivingScene;
   private physics?: PhysicsWorld;
   private vehicle?: VehiclePhysics;
+  private laps?: LapTimer;
+  private trackId: TrackId = "practice";
+  private muted = false;
   private input?: InputManager;
   private audio?: VehicleAudio;
   private readonly idleInput = emptyInput();
@@ -63,7 +68,11 @@ export class GameApplication {
       this.diagnostics.adapter = graphics.adapterName;
       this.diagnostics.message = "正在初始化 Rapier 物理世界";
       this.emit();
-      const track = new Track();
+      const track = new Track(this.trackId);
+      this.laps = new LapTimer(track);
+      this.diagnostics.trackName = track.definition.name;
+      this.diagnostics.trackId = this.trackId;
+      this.diagnostics.mapViewBox = track.mapViewBox;
       const physics = await PhysicsWorld.create(track);
       if (signal.aborted) {
         physics.dispose();
@@ -98,6 +107,7 @@ export class GameApplication {
         () => this.cycleCamera(),
       );
       this.audio = new VehicleAudio();
+      if (this.muted) this.audio.toggleMuted();
       this.audio.setActive(true);
       this.diagnostics.message = "WebGPU 后端与设备已验证";
       this.diagnostics.loadMs = performance.now() - started;
@@ -159,6 +169,12 @@ export class GameApplication {
     this.vehicle.beforeStep(dt, this.input?.read() ?? this.idleInput);
     this.physics.step(dt);
     this.vehicle.afterStep(dt);
+    this.laps?.update(
+      this.vehicle.previousPosition,
+      this.vehicle.position,
+      dt,
+      this.vehicle.groundedWheels,
+    );
     this.elapsed += dt;
     this.diagnostics.physicsMs = performance.now() - start;
     this.diagnostics.physicsSteps++;
@@ -233,6 +249,7 @@ export class GameApplication {
 
   toggleAudio(): void {
     this.audio?.toggleMuted();
+    this.muted = this.audio?.muted ?? this.muted;
     this.emit();
   }
 
@@ -240,6 +257,7 @@ export class GameApplication {
     if (!this.physics || !this.scene || !this.vehicle) return;
     this.input?.clear();
     this.vehicle.reset();
+    this.laps?.invalidate();
     this.physics.resetFeedback();
     this.audio?.reset();
     this.elapsed = 0;
@@ -252,6 +270,21 @@ export class GameApplication {
     if (this.disposed || this.diagnostics.phase !== "error") return;
     this.diagnostics.phase = "starting";
     this.emit();
+    await this.releasing;
+    await this.start();
+  }
+
+  async selectTrack(id: TrackId): Promise<void> {
+    if (
+      id === this.trackId ||
+      !TRACKS.some((t) => t.id === id) ||
+      !["running", "paused"].includes(this.diagnostics.phase)
+    )
+      return;
+    this.trackId = id;
+    this.diagnostics.phase = "starting";
+    this.emit();
+    this.release();
     await this.releasing;
     await this.start();
   }
@@ -298,6 +331,14 @@ export class GameApplication {
         smokeParticles: this.scene?.smoke.count ?? 0,
         audioStatus: this.audio?.status ?? "locked",
         audioMuted: this.audio?.muted ?? false,
+        lapTime: this.laps?.current ?? 0,
+        lastLap: this.laps?.last ?? 0,
+        bestLap: this.laps?.best ?? 0,
+        laps: this.laps?.laps ?? 0,
+        nextCheckpoint: this.laps?.next ?? 0,
+        lapStarted: this.laps?.started ?? false,
+        lapValid: this.laps?.valid ?? true,
+        wrongWay: this.laps?.wrongWay ?? false,
       });
     }
     if (!this.disposed) this.publish({ ...this.diagnostics });
@@ -315,6 +356,7 @@ export class GameApplication {
     this.audio?.dispose();
     this.audio = undefined;
     this.vehicle = undefined;
+    this.laps = undefined;
     this.physics?.dispose();
     this.physics = undefined;
     this.scene?.dispose();

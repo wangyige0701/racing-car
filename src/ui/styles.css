@@ -1489,3 +1489,63 @@ footer i {
     height: 68px;
   }
 }
+.track-select {
+  max-width: 145px;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ffffff30;
+  background: #1b261e;
+  color: #dce3ce;
+  font-size: 11px;
+}
+.lap-hud {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  color: #e8eed9;
+  text-shadow: 0 1px 4px #10221b;
+  pointer-events: none;
+}
+.lap-hud strong {
+  font:
+    24px Consolas,
+    monospace;
+}
+.lap-hud small {
+  font-size: 10px;
+  opacity: 0.8;
+}
+@media (max-width: 1100px) and (min-height: 601px) {
+  .track-heading {
+    flex-wrap: wrap;
+  }
+  .toolbar {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 760px) {
+  .lap-hud {
+    top: 140px;
+    font-size: 10px;
+  }
+  .lap-hud strong {
+    font-size: 17px;
+  }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .lap-hud {
+    top: 65px;
+    font-size: 10px;
+  }
+  .lap-hud strong {
+    font-size: 17px;
+  }
+  .lap-hud small {
+    display: none;
+  }
+}

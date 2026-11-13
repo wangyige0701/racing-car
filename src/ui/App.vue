@@ -7,6 +7,7 @@ import type { TouchControl } from "../input/InputManager";
 import { defaultQuality, type Quality } from "../rendering/quality";
 import TouchSteering from "./TouchSteering.vue";
 import { DEFAULT_CAMERA_SETTINGS } from "../camera/config";
+import { TRACKS, type TrackId } from "../track/catalog";
 
 const viewport = ref<HTMLDivElement>();
 const diagnostics = shallowRef(initialDiagnostics());
@@ -14,6 +15,16 @@ const quality = ref<Quality>(defaultQuality());
 const cameraSettings = ref({ ...DEFAULT_CAMERA_SETTINGS });
 function changeCamera() {
   application?.setCameraSettings(cameraSettings.value);
+}
+function chooseTrack(event: Event) {
+  void application?.selectTrack((event.target as HTMLSelectElement).value as TrackId);
+  (event.target as HTMLSelectElement).blur();
+}
+function lapTime(seconds: number) {
+  const hundredths = Math.floor(seconds * 100);
+  return hundredths > 0
+    ? `${Math.floor(hundredths / 6000)}:${((hundredths % 6000) / 100).toFixed(2).padStart(5, "0")}`
+    : "—";
 }
 function look(value: number, event: PointerEvent) {
   event.preventDefault();
@@ -89,14 +100,25 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
     <main>
       <section class="track-heading">
         <div>
-          <div class="eyebrow"><span></span> PINE RIDGE / TEST CIRCUIT</div>
-          <h1>松岭试车场 <span>自由练习</span></h1>
+          <div class="eyebrow"><span></span> APEX / CIRCUITS</div>
+          <h1>{{ diagnostics.trackName }} <span>自由练习</span></h1>
           <p>
             {{ diagnostics.trackLength ? (diagnostics.trackLength / 1000).toFixed(2) : "—" }} km
             <b>·</b> 闭合测试赛道 <b>·</b> 晴 / 干燥路面
           </p>
         </div>
         <div class="toolbar">
+          <select
+            class="track-select"
+            aria-label="选择赛道"
+            :value="diagnostics.trackId"
+            :disabled="!ready"
+            @change="chooseTrack"
+          >
+            <option v-for="track in TRACKS" :key="track.id" :value="track.id">
+              {{ track.name }}
+            </option>
+          </select>
           <button
             class="button secondary audio-button"
             :disabled="!ready"
@@ -180,6 +202,25 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         </div>
 
         <template v-if="ready">
+          <div class="lap-hud" data-testid="lap-hud">
+            <strong>{{
+              diagnostics.wrongWay
+                ? "逆向行驶"
+                : !diagnostics.lapValid
+                  ? "本圈无效"
+                  : diagnostics.lapStarted
+                    ? lapTime(diagnostics.lapTime)
+                    : "通过起点开始计圈"
+            }}</strong>
+            <span
+              >完成 {{ diagnostics.laps }} 圈 · 下一点
+              {{ diagnostics.nextCheckpoint ? `CP ${diagnostics.nextCheckpoint}` : "起点" }}</span
+            >
+            <small
+              >上圈 {{ lapTime(diagnostics.lastLap) }} · 最佳
+              {{ lapTime(diagnostics.bestLap) }}</small
+            >
+          </div>
           <div class="session-info">
             <span class="hud-label">PRACTICE TIME</span
             ><strong data-testid="elapsed">{{ time }}</strong>
@@ -192,7 +233,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           </div>
           <div class="track-map">
             <div class="map-heading"><span>赛道位置</span><span>N ↑</span></div>
-            <svg viewBox="-135 -190 310 380" role="img" aria-label="赛道地图与车辆位置">
+            <svg :viewBox="diagnostics.mapViewBox" role="img" aria-label="赛道地图与车辆位置">
               <polygon
                 :points="diagnostics.mapPoints"
                 fill="none"
@@ -210,7 +251,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
                 stroke-linejoin="round"
               />
               <g
-                :transform="`translate(${diagnostics.mapX},${diagnostics.mapY}) rotate(${diagnostics.heading})`"
+                :transform="`translate(${diagnostics.mapX},${diagnostics.mapY}) scale(${Math.max(1, diagnostics.trackLength / 950)}) rotate(${diagnostics.heading})`"
                 :data-heading="diagnostics.heading"
                 data-testid="map-marker"
               >
@@ -223,7 +264,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
                 />
               </g></svg
             ><span class="map-caption"
-              >PINE RIDGE <b>{{ (diagnostics.trackLength / 1000).toFixed(2) }} KM</b></span
+              >{{ diagnostics.trackName }}
+              <b>{{ (diagnostics.trackLength / 1000).toFixed(2) }} KM</b></span
             >
           </div>
 
@@ -357,6 +399,16 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
               >
             </details>
             <div class="mobile-settings">
+              <select
+                aria-label="横屏选择赛道"
+                :value="diagnostics.trackId"
+                :disabled="!ready"
+                @change="chooseTrack"
+              >
+                <option v-for="track in TRACKS" :key="track.id" :value="track.id">
+                  {{ track.name }}
+                </option>
+              </select>
               <button @click="application?.resetVehicle()">重置车辆</button>
               <button @click="application?.toggleAudio()">
                 {{ diagnostics.audioMuted ? "开启音效" : "静音" }}

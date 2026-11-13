@@ -52,6 +52,12 @@ for (const viewport of [
     await page.screenshot({ path: info.outputPath("landscape.png") });
     await page.locator(".mobile-actions button").last().tap();
     await expect(page.locator(".pause-overlay")).toBeVisible();
+    await page.getByLabel("横屏选择赛道").selectOption("city");
+    await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+    await expect(page.locator("canvas")).toHaveCount(1);
+    await expect(page.getByTestId("lap-hud")).toContainText("通过起点开始计圈");
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(viewport.height);
+    await page.screenshot({ path: info.outputPath("landscape-city.png") });
     expect(errors).toEqual([]);
     await context.close();
   });

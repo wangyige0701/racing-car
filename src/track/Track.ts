@@ -1,25 +1,13 @@
-import { CatmullRomCurve3, Vector3 } from "three/webgpu";
+import { CatmullRomCurve3, Vector3, Quaternion, Matrix4 } from "three/webgpu";
+import { TRACKS, type TrackDefinition, type TrackId } from "./catalog";
 
-export const TRACK_CONFIG = {
-  name: "松岭试车场",
-  width: 16,
-  samples: 240,
-  points: [
-    [-100, -150],
-    [-100, -45],
-    [-95, 65],
-    [-55, 145],
-    [40, 165],
-    [125, 110],
-    [145, 10],
-    [100, -95],
-    [15, -145],
-  ],
-} as const;
+export const TRACK_CONFIG = TRACKS[0];
 export interface TrackSample {
   x: number;
+  y: number;
   z: number;
   tx: number;
+  ty: number;
   tz: number;
 }
 
@@ -27,23 +15,33 @@ export interface TrackSample {
 export class Track {
   readonly samples: TrackSample[];
   readonly length: number;
-  readonly width = TRACK_CONFIG.width;
+  readonly width: number;
+  readonly definition: TrackDefinition;
+  readonly startIndex = 17;
+  readonly mapViewBox: string;
   readonly vertices: Float32Array;
   readonly indices: Uint32Array;
 
-  constructor() {
+  constructor(id: TrackId = "practice") {
+    this.definition = TRACKS.find((t) => t.id === id) ?? TRACKS[0];
+    this.width = this.definition.width;
     const curve = new CatmullRomCurve3(
-      TRACK_CONFIG.points.map(([x, z]) => new Vector3(x, 0, z)),
+      this.definition.points.map(([x, y, z]) => new Vector3(x, y, z)),
       true,
       "centripetal",
     );
     curve.arcLengthDivisions = 2048;
     this.length = curve.getLength();
-    this.samples = Array.from({ length: TRACK_CONFIG.samples }, (_, i) => {
-      const p = curve.getPointAt(i / TRACK_CONFIG.samples);
-      const t = curve.getTangentAt(i / TRACK_CONFIG.samples).normalize();
-      return { x: p.x, z: p.z, tx: t.x, tz: t.z };
+    this.samples = Array.from({ length: this.definition.samples }, (_, i) => {
+      const p = curve.getPointAt(i / this.definition.samples);
+      const t = curve.getTangentAt(i / this.definition.samples).normalize();
+      return { x: p.x, y: p.y, z: p.z, tx: t.x, ty: t.y, tz: t.z };
     });
+    const minX = Math.min(...this.samples.map((s) => s.x)) - 30,
+      minZ = Math.min(...this.samples.map((s) => -s.z)) - 30;
+    const width = Math.max(...this.samples.map((s) => s.x)) - minX + 30,
+      height = Math.max(...this.samples.map((s) => -s.z)) - minZ + 30;
+    this.mapViewBox = `${minX} ${minZ} ${width} ${height}`;
     this.vertices = new Float32Array(this.samples.length * 6);
     this.indices = new Uint32Array(this.samples.length * 6);
     this.samples.forEach((s, i) => {
@@ -51,10 +49,10 @@ export class Track {
       this.vertices.set(
         [
           s.x - (s.tz * this.width) / 2,
-          0,
+          s.y,
           s.z + (s.tx * this.width) / 2,
           s.x + (s.tz * this.width) / 2,
-          0,
+          s.y,
           s.z - (s.tx * this.width) / 2,
         ],
         i * 6,
@@ -79,11 +77,17 @@ export class Track {
 
   pose(index = 10) {
     const s = this.samples[(index + this.samples.length) % this.samples.length];
-    const yaw = Math.atan2(s.tx, s.tz);
     return {
-      position: { x: s.x, y: 0.9, z: s.z },
-      rotation: { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) },
+      position: { x: s.x, y: s.y + 0.9, z: s.z },
+      rotation: this.orientation(s.tx, s.ty, s.tz),
     };
+  }
+
+  orientation(x: number, y: number, z: number): Quaternion {
+    const forward = new Vector3(x, y, z).normalize();
+    const left = new Vector3(z, 0, -x).normalize();
+    const up = new Vector3().crossVectors(forward, left).normalize();
+    return new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(left, up, forward));
   }
 
   barrierSegments() {
@@ -97,9 +101,11 @@ export class Track {
           bz = n.z - n.tx * offset;
         return {
           x: (ax + bx) / 2,
+          y: (s.y + n.y) / 2,
           z: (az + bz) / 2,
           yaw: Math.atan2(bx - ax, bz - az),
-          length: Math.hypot(bx - ax, bz - az) + 0.16,
+          rotation: this.orientation(bx - ax, n.y - s.y, bz - az),
+          length: Math.hypot(bx - ax, n.y - s.y, bz - az) + 0.16,
         };
       }),
     );

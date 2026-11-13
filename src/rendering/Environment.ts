@@ -20,10 +20,27 @@ import type { Track } from "../track/Track";
 export function terrainHeight(track: Track, x: number, z: number): number {
   const s = track.samples[track.nearest(x, z)],
     d = Math.hypot(x - s.x, z - s.z);
+  const base =
+    s.y +
+    ((x - s.x) * s.tx + (z - s.z) * s.tz) * s.ty -
+    (track.definition.id === "practice" ? 0.05 : 0.8);
+  if (track.definition.theme === "city") return base;
+  if (track.definition.theme === "coast" && x < -450 && d > 25)
+    return base - Math.min(1, (d - 25) / 70) * (s.y + 4);
   return (
-    -0.05 +
-    Math.min(1, Math.max(0, (d - 20) / 80)) * (10 + 8 * Math.sin(x * 0.014) * Math.cos(z * 0.018))
+    base +
+    Math.min(1, Math.max(0, (d - 32) / 80)) * (10 + 8 * Math.sin(x * 0.014) * Math.cos(z * 0.018))
   );
+}
+
+export function terrainGeometry(track: Track): PlaneGeometry {
+  const terrain = new PlaneGeometry(1600, 1600, 96, 96);
+  terrain.rotateX(-Math.PI / 2);
+  const positions = terrain.getAttribute("position");
+  for (let i = 0; i < positions.count; i++)
+    positions.setY(i, terrainHeight(track, positions.getX(i), positions.getZ(i)));
+  terrain.computeVertexNormals();
+  return terrain;
 }
 
 /** Instanced scenery with distance-selected canopy detail and reusable local sign textures. */
@@ -57,16 +74,20 @@ export class Environment {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed / 4294967296;
     };
-    for (let i = 0; i < 230; i++) {
+    const treeCount = track.definition.theme === "city" ? 45 : 230;
+    trunks.count = treeCount;
+    for (let i = 0; i < treeCount; i++) {
       let x = 0,
         z = 0,
         d = 0;
       do {
-        x = (random() - 0.5) * 750;
-        z = (random() - 0.5) * 750;
+        const sample = track.samples[Math.floor(random() * track.samples.length)];
+        const offset = (random() > 0.5 ? 1 : -1) * (26 + random() * 110);
+        x = sample.x + sample.tz * offset;
+        z = sample.z - sample.tx * offset;
         const s = track.samples[track.nearest(x, z)];
         d = Math.hypot(x - s.x, z - s.z);
-      } while (d < 23);
+      } while (d < 23 || (track.definition.theme === "coast" && terrainHeight(track, x, z) < 0.5));
       const tree = {
         position: new Vector3(x, terrainHeight(track, x, z), z),
         scale: 0.8 + random() * 1.3,
@@ -86,14 +107,29 @@ export class Environment {
     );
     for (let i = 0; i < 20; i++) {
       const angle = (i / 20) * Math.PI * 2;
-      this.dummy.position.set(Math.cos(angle) * 620, 10, Math.sin(angle) * 620);
+      this.dummy.position.set(
+        Math.cos(angle) * (track.definition.id === "practice" ? 620 : 900),
+        10,
+        Math.sin(angle) * (track.definition.id === "practice" ? 620 : 900),
+      );
       this.dummy.scale.set(100 + random() * 80, 45 + random() * 90, 100 + random() * 80);
       this.dummy.rotation.y = random() * 6;
       this.dummy.updateMatrix();
       hills.setMatrixAt(i, this.dummy.matrix);
     }
     this.root.add(hills);
-    for (const corner of [60, 130, 200])
+    hills.visible = track.definition.theme !== "city";
+    if (track.definition.theme === "coast") {
+      const water = new Mesh(
+        new PlaneGeometry(1000, 2000),
+        new MeshStandardNodeMaterial({ color: "#367d8d", metalness: 0.3, roughness: 0.28 }),
+      );
+      water.rotation.x = -Math.PI / 2;
+      water.position.set(-850, 0.2, 0);
+      this.root.add(water);
+    }
+    if (track.definition.theme === "city") this.addCity(track, random);
+    for (const corner of [0.25, 0.54, 0.83].map((t) => Math.floor(t * track.samples.length)))
       for (const distance of [100, 50]) {
         const index =
           (corner -
@@ -101,13 +137,26 @@ export class Environment {
             track.samples.length) %
           track.samples.length;
         const s = track.samples[index];
-        this.sign(s.x + s.tz * 11.5, s.z - s.tx * 11.5, Math.atan2(s.tx, s.tz), String(distance));
+        this.sign(
+          s.x + s.tz * 11.5,
+          s.z - s.tx * 11.5,
+          Math.atan2(s.tx, s.tz),
+          String(distance),
+          s.y,
+        );
       }
+    for (let i = 1; i < 8; i++) {
+      const s =
+        track.samples[
+          (track.startIndex + Math.round((i * track.samples.length) / 8)) % track.samples.length
+        ];
+      this.sign(s.x + s.tz * 10.5, s.z - s.tx * 10.5, Math.atan2(s.tx, s.tz), `CP ${i}`, s.y);
+    }
     this.update(new Vector3(), 1);
   }
-  private sign(x: number, z: number, yaw: number, label: string) {
+  private sign(x: number, z: number, yaw: number, label: string, y: number) {
     const group = new Group();
-    group.position.set(x, 0, z);
+    group.position.set(x, y, z);
     group.rotation.y = yaw + Math.PI;
     const canvas = document.createElement("canvas");
     canvas.width = 128;
@@ -116,7 +165,7 @@ export class Environment {
     ctx.fillStyle = "#e1e5d9";
     ctx.fillRect(0, 0, 128, 96);
     ctx.fillStyle = "#21342c";
-    ctx.font = "bold 64px sans-serif";
+    ctx.font = label.startsWith("CP") ? "bold 40px sans-serif" : "bold 64px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(label, 64, 72);
     const map = new CanvasTexture(canvas);
@@ -133,6 +182,48 @@ export class Environment {
     post.position.y = 0.9;
     group.add(board, post);
     this.root.add(group);
+  }
+  private addCity(track: Track, random: () => number): void {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#50616b";
+    ctx.fillRect(0, 0, 128, 256);
+    for (let y = 8; y < 250; y += 24)
+      for (let x = 8; x < 120; x += 22) {
+        ctx.fillStyle = random() > 0.7 ? "#c7c4a2" : "#253c4c";
+        ctx.fillRect(x, y, 12, 15);
+      }
+    const map = new CanvasTexture(canvas);
+    map.colorSpace = SRGBColorSpace;
+    const buildings = new InstancedMesh(
+      new BoxGeometry(1, 1, 1),
+      new MeshStandardNodeMaterial({ map, roughness: 0.7 }),
+      120,
+    );
+    for (let i = 0; i < 120; i++) {
+      let x = 0,
+        z = 0,
+        d = 0;
+      do {
+        const s = track.samples[Math.floor(random() * track.samples.length)];
+        const offset = (random() > 0.5 ? 1 : -1) * (40 + random() * 120);
+        x = s.x + s.tz * offset;
+        z = s.z - s.tx * offset;
+        const n = track.samples[track.nearest(x, z)];
+        d = Math.hypot(n.x - x, n.z - z);
+      } while (d < 35);
+      const height = 12 + random() * 44;
+      this.dummy.position.set(x, terrainHeight(track, x, z) + height / 2, z);
+      this.dummy.scale.set(12 + random() * 12, height, 12 + random() * 12);
+      this.dummy.rotation.set(0, (Math.round(random() * 4) * Math.PI) / 2, 0);
+      this.dummy.updateMatrix();
+      buildings.setMatrixAt(i, this.dummy.matrix);
+    }
+    buildings.castShadow = true;
+    buildings.receiveShadow = true;
+    this.root.add(buildings);
   }
   update(position: Vector3, dt: number): void {
     this.countdown -= dt;
