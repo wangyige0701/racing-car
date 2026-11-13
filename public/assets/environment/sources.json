@@ -1,0 +1,151 @@
+﻿[
+  {
+    "id": "boulder_01",
+    "authors": {
+      "Rico Cilliers": "All"
+    },
+    "source": {
+      "include": {
+        "textures/boulder_01_arm_1k.jpg": {
+          "size": 659386,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/boulder_01/boulder_01_arm_1k.jpg",
+          "md5": "d632159982cc3121ed3d69b89a122146"
+        },
+        "textures/boulder_01_diff_1k.jpg": {
+          "size": 987467,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/boulder_01/boulder_01_diff_1k.jpg",
+          "md5": "25f8a843f13369d56d37f49db05ea8c3"
+        },
+        "boulder_01.bin": {
+          "size": 2938808,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/boulder_01/boulder_01.bin",
+          "md5": "27a19fa031d8b4c3a09261f19c444dc5"
+        },
+        "textures/boulder_01_nor_gl_1k.jpg": {
+          "size": 1183552,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/boulder_01/boulder_01_nor_gl_1k.jpg",
+          "md5": "0c4da644d901144b53e4fe2446f3c389"
+        }
+      },
+      "size": 2773,
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/boulder_01/boulder_01_1k.gltf",
+      "md5": "26e2eef4a1f68c9557c65cd375b21d6c"
+    }
+  },
+  {
+    "id": "pine_sapling_small",
+    "authors": {
+      "Rob Tuytel": "photography",
+      "Rico Cilliers": "modeling"
+    },
+    "source": {
+      "include": {
+        "textures/pine_sapling_small_twig_arm_1k.jpg": {
+          "size": 394056,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_twig_arm_1k.jpg",
+          "md5": "b5062030fc42ec7bd12eb3f052054104"
+        },
+        "textures/pine_sapling_small_twig_diff_1k.jpg": {
+          "size": 477942,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_twig_diff_1k.jpg",
+          "md5": "dacc918bb421968e9ccc1956d78a2dbe"
+        },
+        "textures/pine_sapling_small_bark_nor_gl_1k.jpg": {
+          "size": 1016849,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_bark_nor_gl_1k.jpg",
+          "md5": "bb6e3a6eea777d992cef48fabfdc538c"
+        },
+        "pine_sapling_small.bin": {
+          "size": 17771796,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/pine_sapling_small/pine_sapling_small.bin",
+          "md5": "76dd1802d8de128c812f2e124a258b35"
+        },
+        "textures/pine_sapling_small_bark_diff_1k.jpg": {
+          "size": 725265,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_bark_diff_1k.jpg",
+          "md5": "7d3a558ed614c7e75594c7be3bf80311"
+        },
+        "textures/pine_sapling_small_bark_arm_1k.jpg": {
+          "size": 801278,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_bark_arm_1k.jpg",
+          "md5": "21d1abd15e40951825a4f3da110b20ea"
+        },
+        "textures/pine_sapling_small_twig_nor_gl_1k.jpg": {
+          "size": 692711,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/pine_sapling_small/pine_sapling_small_twig_nor_gl_1k.jpg",
+          "md5": "eebc5a81f8f6231d8e18ec4ad7292798"
+        }
+      },
+      "size": 11442,
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/pine_sapling_small/pine_sapling_small_1k.gltf",
+      "md5": "237a7672645631550ae571743aa9f55b"
+    }
+  },
+  {
+    "id": "wild_rooibos_bush",
+    "authors": {
+      "James Ray Cock": "modeling",
+      "Jenelle van Heerden": "photography"
+    },
+    "source": {
+      "include": {
+        "textures/wild_rooibos_bush_nor_gl_1k.jpg": {
+          "size": 463170,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/wild_rooibos_bush/wild_rooibos_bush_nor_gl_1k.jpg",
+          "md5": "78a6bd59ce4a2e21fb01cadf382a1338"
+        },
+        "textures/wild_rooibos_bush_diff_1k.jpg": {
+          "size": 374003,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/wild_rooibos_bush/wild_rooibos_bush_diff_1k.jpg",
+          "md5": "47ee13b7a87d2aff07c0ec708a33f6ab"
+        },
+        "textures/wild_rooibos_bush_arm_1k.jpg": {
+          "size": 367273,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/wild_rooibos_bush/wild_rooibos_bush_arm_1k.jpg",
+          "md5": "bd65f1b013b7df7d75ef87d9a66b669c"
+        },
+        "wild_rooibos_bush.bin": {
+          "size": 1236928,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/wild_rooibos_bush/wild_rooibos_bush.bin",
+          "md5": "0d6c39ac444bac0381ecdff32a191a9c"
+        }
+      },
+      "size": 23122,
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wild_rooibos_bush/wild_rooibos_bush_1k.gltf",
+      "md5": "589911681acc2ebac68ff12ded20460d"
+    }
+  },
+  {
+    "id": "street_lamp_01",
+    "authors": {
+      "Josh Dean": "All"
+    },
+    "source": {
+      "include": {
+        "textures/street_lamp_01_arm_1k.jpg": {
+          "size": 664324,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/street_lamp_01/street_lamp_01_arm_1k.jpg",
+          "md5": "63d980174db10cf22a1b175743c465c9"
+        },
+        "textures/street_lamp_01_diff_1k.jpg": {
+          "size": 307889,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/street_lamp_01/street_lamp_01_diff_1k.jpg",
+          "md5": "82efb7531a25cda3ef8af2aff8ecccf7"
+        },
+        "textures/street_lamp_01_nor_gl_1k.jpg": {
+          "size": 438623,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/street_lamp_01/street_lamp_01_nor_gl_1k.jpg",
+          "md5": "c27d8102c7e851a8f0f654bb959b9d67"
+        },
+        "street_lamp_01.bin": {
+          "size": 748908,
+          "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/street_lamp_01/street_lamp_01.bin",
+          "md5": "324bc6295e3962322514ddcfc7037b23"
+        }
+      },
+      "size": 6419,
+      "url": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/street_lamp_01/street_lamp_01_1k.gltf",
+      "md5": "d29d1fc30bbdad99a58371754f144e65"
+    }
+  }
+]

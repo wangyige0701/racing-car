@@ -18,6 +18,7 @@ pnpm build          # Vue / TypeScript 类型检查 + 生产构建
 pnpm preview        # 本地预览 dist，默认端口 4173
 pnpm test           # 物理、闭环驾驶、输入与真实 WebGPU 浏览器验收
 pnpm format:check   # 格式检查
+pnpm assets:environment # 从已下载的固定来源重新生成场景资产
 ```
 
 测试默认使用已安装的 Google Chrome。使用 Edge 时在 PowerShell 设置 `$env:BROWSER_CHANNEL = 'msedge'` 后运行 `pnpm test`。测试会启动或复用 5173 端口的开发服务；本地请求不经过 HTTP 代理。没有 WebGPU 的环境会使实际渲染测试失败，不会跳过或回退 WebGL。
@@ -79,7 +80,7 @@ HUD 显示速度、自动挡位 / R、估算 RPM、油门 / 制动、练习时�
 
 `CameraManager` 使用单个输出相机，视角切换在 0.65 秒内平滑插值位置和朝向；连续切换从当前画面位姿继续。相机锚点集中在 `src/camera/config.ts`，车内视角读取插值后的底盘姿态。过渡中的镜头也检测固定碰撞体；重置车辆时镜头同步归位。车内保留真实车身、A 柱、内饰和后视镜，仅在驾驶舱视角隐藏玻璃，避免多层透明表面影响视线；左座眼点与方向盘、仪表对齐。后视镜目前是模型表面，没有实时后方画面。
 
-`src/track/catalog.ts` 配置试车场、山地、沿海和城市四条闭合路线。`Track` 生成带高差的共用道路、护栏、地图与重置数据；`LapTimer` 使用固定物理步长和八个顺序方向门计圈。道路和护栏参与碰撞，环境为护栏外程序装饰模型。路线长度、控制器圈时、计圈规则与验证边界见 [赛道与计圈](docs/tracks.md)。
+`src/track/catalog.ts` 配置试车场、山地、沿海和城市四条闭合路线。`Track` 生成带高差的共用道路、护栏、地图与重置数据；`LapTimer` 使用固定物理步长和八个顺序方向门计圈。道路和护栏参与碰撞，护栏外环境使用 CC0 写实植被 / 岩石 / 路灯、PBR 地表，以及项目内制作的建筑、维修区和金属护栏结构。场景资产来源与加工步骤见 [环境资产说明](public/assets/environment/CREDITS.md)。路线长度、控制器圈时、计圈规则与验证边界见 [赛道与计圈](docs/tracks.md)。
 
 ## 架构
 
@@ -90,6 +91,8 @@ HUD 显示速度、自动挡位 / R、估算 RPM、油门 / 制动、练习时�
 | `src/core/FixedStep.ts`、`types.ts`                                                               | 固定时间步与 UI 诊断契约                                                        |
 | `src/rendering/Renderer.ts`                                                                       | 严格 WebGPU 设备申请、实际后端校验、错误处理及释放                              |
 | `src/rendering/DrivingScene.ts`、`Environment.ts`、`RoadSurface.ts`、`TireMarks.ts`、`quality.ts` | 场景、路面纹理、轮胎痕迹、实例化环境及距离细节、画质预算                        |
+| `src/rendering/EnvironmentAssets.ts`、`Architecture.ts`、`RoadFurniture.ts`                       | 写实模型 / PBR 材质加载、建筑结构、金属护栏与距离裁剪                           |
+| `scripts/prepare-environment.mjs`、`public/assets/environment/`                                   | 固定来源校验、场景 GLB / WebP 优化产物及 CC0 许可                               |
 | `src/physics/PhysicsWorld.ts`                                                                     | Rapier WASM、道路与护栏碰撞世界、接触事件                                       |
 | `src/vehicle/`                                                                                    | 物理配置、悬挂稳定、换向与驱动、漂移抓地控制、GLB 绑定、内饰仪表和车轮动画      |
 | `src/audio/VehicleAudio.ts`                                                                       | 用户手势解锁、发动机 / 轮胎 / 风噪 / 接触合成音、静音与释放                     |
@@ -141,6 +144,6 @@ API 依据为安装版本的官方源码、README 与类型声明。参考：[Th
 
 完整竞赛菜单、发车倒计时、AI 对手、固定圈数结算和成绩存档尚未实现。现有自由练习计圈和赛道选择可作为后续比赛流程基础。
 
-场景仍需更丰富的美术资产，车辆 LOD、实时后视镜、GPU 时间戳分析和真实手机持续性能验收也属于后续工作。物理与浏览器回归不能代替人工漂移手感、音色和实体设备体验评价。
+场景已接入写实资产并增加建筑结构细节，仍需美术精修；车辆 LOD、实时后视镜、GPU 时间戳分析和真实手机持续性能验收也属于后续工作。物理与浏览器回归不能代替人工漂移手感、音色和实体设备体验评价。
 
 每个阶段验收、文档同步后单独提交 Git；不自动推送远端。

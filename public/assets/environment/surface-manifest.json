@@ -1,0 +1,47 @@
+[
+  {
+    "name": "asphalt_02-nor_gl.webp",
+    "bytes": 208480,
+    "sha256": "8e4f82e4abc1da6cd45d7de6cc7fbc0c96d940c0fea59df766741b5bad24350e"
+  },
+  {
+    "name": "asphalt_02-arm.webp",
+    "bytes": 77470,
+    "sha256": "553d450eaa9bb2c3a16667a3ce8767764276407e91fcb1a9361c49068a8263aa"
+  },
+  {
+    "name": "asphalt_02-Diffuse.webp",
+    "bytes": 419618,
+    "sha256": "84f8b06fde5cb4c5f31167e9ce50e326de773841ae37249791e5cbe5cbd38e15"
+  },
+  {
+    "name": "forest_ground_04-nor_gl.webp",
+    "bytes": 237110,
+    "sha256": "ca3eba7055284b4756616ad8b52a2457b9c94cd0864b2918d375499739b9f828"
+  },
+  {
+    "name": "forest_ground_04-arm.webp",
+    "bytes": 47396,
+    "sha256": "3d851dde34e597e5a9c4e6f9b0cb7e2194c510a71de6f4143a9a409e07af2134"
+  },
+  {
+    "name": "forest_ground_04-Diffuse.webp",
+    "bytes": 377424,
+    "sha256": "56d0013604117def28675f98a676375d5c5828eeb4da19207f9d0cba9bf4f345"
+  },
+  {
+    "name": "concrete_wall_006-nor_gl.webp",
+    "bytes": 203258,
+    "sha256": "90740f59cdbeb1e488a74e5de99fce2018abcf700126e68659165584be9cba1f"
+  },
+  {
+    "name": "concrete_wall_006-arm.webp",
+    "bytes": 48850,
+    "sha256": "9c9eed0ec4cebce4c94695e8b5c7ab60ca4f8f93a26c80e304efb83c1b9619a6"
+  },
+  {
+    "name": "concrete_wall_006-Diffuse.webp",
+    "bytes": 167612,
+    "sha256": "e2f6a5772a7dbb4035c2fccd0d492f12839b9a20f4f483a433c296999f3e1284"
+  }
+]

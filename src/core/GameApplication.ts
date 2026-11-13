@@ -3,6 +3,8 @@ import { initialDiagnostics } from "./types";
 import type { Diagnostics } from "./types";
 import { Graphics } from "../rendering/Renderer";
 import { DrivingScene } from "../rendering/DrivingScene";
+import { EnvironmentAssets } from "../rendering/EnvironmentAssets";
+import { disposeObject } from "../rendering/dispose";
 import { PhysicsWorld } from "../physics/PhysicsWorld";
 import { VehiclePhysics } from "../vehicle/VehiclePhysics";
 import { VehicleVisual } from "../vehicle/VehicleVisual";
@@ -87,7 +89,23 @@ export class GameApplication {
       this.diagnostics.message = "正在加载 GLB 赛车与左舵驾驶舱";
       this.emit();
       const visual = await VehicleVisual.load(signal);
-      this.scene = new DrivingScene(track, visual);
+      this.diagnostics.message = "正在加载写实植被、岩石与道路设施";
+      this.emit();
+      let assets: EnvironmentAssets;
+      try {
+        assets = await EnvironmentAssets.load(signal);
+      } catch (error) {
+        disposeObject(visual.root);
+        throw error;
+      }
+      try {
+        this.scene = new DrivingScene(track, visual, assets);
+        assets.disposeSourceGeometry();
+      } catch (error) {
+        assets.dispose();
+        disposeObject(visual.root);
+        throw error;
+      }
       this.scene.cameras.setSettings(this.cameraSettings);
       this.scene.setQuality(this.quality);
       this.scene.update(this.vehicle, 1, 0, physics, true);

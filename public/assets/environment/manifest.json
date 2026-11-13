@@ -1,0 +1,50 @@
+[
+  {
+    "name": "boulder_01-near.glb",
+    "bytes": 724052,
+    "triangles": 9918,
+    "sha256": "4379977282a17be08abf24f26f9a57e61b9baffb64194ad51e5af525aba0430d"
+  },
+  {
+    "name": "boulder_01-far.glb",
+    "bytes": 77292,
+    "triangles": 2314,
+    "sha256": "3230e11a67527e0c72020984f73a8cf33b13970aeec82d7db8d0e01aa63e3a94"
+  },
+  {
+    "name": "pine_sapling_small-near.glb",
+    "bytes": 1143132,
+    "triangles": 18310,
+    "sha256": "b1290fcfa3d0d20a2d65d35f13a62c8cc91a67d260904a2e5f01143d22fff912"
+  },
+  {
+    "name": "pine_sapling_small-far.glb",
+    "bytes": 189004,
+    "triangles": 4183,
+    "sha256": "cc812e62c43b5e5c0c576a936257ef2aa7a10dc75892f77f4cb81ef30d7eccea"
+  },
+  {
+    "name": "wild_rooibos_bush-near.glb",
+    "bytes": 307928,
+    "triangles": 4583,
+    "sha256": "046b2f212a75f4dc58a16fe31bbf3fc8b04e83c0a7431b701e7912dcc9a0129c"
+  },
+  {
+    "name": "wild_rooibos_bush-far.glb",
+    "bytes": 91952,
+    "triangles": 1918,
+    "sha256": "bbf6ac69ff26e6b5d3bd3a571a5cc957db926143e982089d35e414f5324f73c2"
+  },
+  {
+    "name": "street_lamp_01-near.glb",
+    "bytes": 208844,
+    "triangles": 4780,
+    "sha256": "539d5aa45e3ba39ec9ff7d5b05fe51f01f1ac321511e4bbf81f2e9bf78f44edb"
+  },
+  {
+    "name": "street_lamp_01-far.glb",
+    "bytes": 39848,
+    "triangles": 1212,
+    "sha256": "70ce40ed00559f769f135e78a644c34c9ed513ac5dc27a58406ae2598770f924"
+  }
+]

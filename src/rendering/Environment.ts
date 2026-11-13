@@ -1,8 +1,6 @@
 import {
   Group,
   InstancedMesh,
-  ConeGeometry,
-  CylinderGeometry,
   IcosahedronGeometry,
   MeshStandardNodeMaterial,
   Mesh,
@@ -14,7 +12,8 @@ import {
   Vector3,
   Color,
 } from "three/webgpu";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import type { EnvironmentAssets, EnvironmentModel } from "./EnvironmentAssets";
+import { buildingModel } from "./Architecture";
 import type { Track } from "../track/Track";
 
 export function terrainHeight(track: Track, x: number, z: number): number {
@@ -46,60 +45,73 @@ export function terrainGeometry(track: Track): PlaneGeometry {
 /** Instanced scenery with distance-selected canopy detail and reusable local sign textures. */
 export class Environment {
   readonly root = new Group();
-  private readonly trees: { position: Vector3; scale: number; color: Color }[] = [];
-  private readonly near: InstancedMesh;
-  private readonly far: InstancedMesh;
+  private readonly batches: {
+    near: InstancedMesh[];
+    far: InstancedMesh[];
+    placements: { position: Vector3; height: number; yaw: number }[];
+  }[] = [];
   private readonly dummy = new Object3D();
   private countdown = 0;
   detailDistance = 180;
-  constructor(track: Track) {
-    const foliage = new MeshStandardNodeMaterial({ color: "#476644", roughness: 1 });
-    const layers = [
-      new ConeGeometry(2.5, 4, 11).translate(0, 3, 0),
-      new ConeGeometry(1.9, 3.5, 11).translate(0, 4.8, 0),
-      new ConeGeometry(1.2, 3, 11).translate(0, 6.4, 0),
-    ];
-    const canopy = mergeGeometries(layers)!;
-    layers.forEach((g) => g.dispose());
-    this.near = new InstancedMesh(canopy, foliage, 230);
-    this.far = new InstancedMesh(new ConeGeometry(2.4, 7, 7).translate(0, 4.6, 0), foliage, 230);
-    const trunks = new InstancedMesh(
-      new CylinderGeometry(0.22, 0.43, 4, 7).translate(0, 2, 0),
-      new MeshStandardNodeMaterial({ color: "#5d4c3a", roughness: 1 }),
-      230,
-    );
-    this.near.castShadow = true;
+  constructor(track: Track, assets: EnvironmentAssets) {
     let seed = 851;
     const random = () => {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed / 4294967296;
     };
-    const treeCount = track.definition.theme === "city" ? 45 : 230;
-    trunks.count = treeCount;
-    for (let i = 0; i < treeCount; i++) {
-      let x = 0,
-        z = 0,
-        d = 0;
-      do {
-        const sample = track.samples[Math.floor(random() * track.samples.length)];
-        const offset = (random() > 0.5 ? 1 : -1) * (26 + random() * 110);
-        x = sample.x + sample.tz * offset;
-        z = sample.z - sample.tx * offset;
-        const s = track.samples[track.nearest(x, z)];
-        d = Math.hypot(x - s.x, z - s.z);
-      } while (d < 23 || (track.definition.theme === "coast" && terrainHeight(track, x, z) < 0.5));
-      const tree = {
-        position: new Vector3(x, terrainHeight(track, x, z), z),
-        scale: 0.8 + random() * 1.3,
-        color: new Color().setHSL(0.28 + random() * 0.04, 0.26, 0.38 + random() * 0.13),
-      };
-      this.trees.push(tree);
-      this.dummy.position.copy(tree.position);
-      this.dummy.scale.setScalar(tree.scale);
-      this.dummy.updateMatrix();
-      trunks.setMatrixAt(i, this.dummy.matrix);
+    for (const id of [
+      "pine_sapling_small",
+      "boulder_01",
+      "wild_rooibos_bush",
+      "street_lamp_01",
+    ] as EnvironmentModel[]) {
+      const lamp = id === "street_lamp_01";
+      const count = lamp
+        ? track.definition.theme === "city"
+          ? 100
+          : 24
+        : id === "pine_sapling_small"
+          ? track.definition.theme === "city"
+            ? 45
+            : 180
+          : 130;
+      const placements = [];
+      for (let i = 0; i < count; i++) {
+        let x = 0,
+          z = 0,
+          d = 0,
+          y = 0,
+          yaw = 0;
+        do {
+          const s =
+            track.samples[
+              lamp
+                ? Math.floor((i * track.samples.length) / count)
+                : Math.floor(random() * track.samples.length)
+            ];
+          const side = i % 2 ? -1 : 1;
+          const offset = side * (lamp ? 12.5 : 18 + random() * 85);
+          x = s.x + s.tz * offset;
+          z = s.z - s.tx * offset;
+          const n = track.samples[track.nearest(x, z)];
+          d = Math.hypot(x - n.x, z - n.z);
+          y = terrainHeight(track, x, z);
+          yaw = lamp ? Math.atan2(s.tx, s.tz) + (side > 0 ? Math.PI : 0) : random() * Math.PI * 2;
+        } while (!lamp && (d < 17 || (track.definition.theme === "coast" && y < 0.5)));
+        const height = lamp
+          ? 7
+          : id === "pine_sapling_small"
+            ? 4.5 + random() * 6
+            : id === "boulder_01"
+              ? 1.2 + random() * 3.2
+              : 0.6 + random() * 1.2;
+        placements.push({ position: new Vector3(x, y - 0.1, z), height, yaw });
+      }
+      const near = assets.createBatch(id, "near", count);
+      const far = assets.createBatch(id, "far", count);
+      this.root.add(...near, ...far);
+      this.batches.push({ near, far, placements });
     }
-    this.root.add(trunks, this.near, this.far);
     const hills = new InstancedMesh(
       new IcosahedronGeometry(1, 2),
       new MeshStandardNodeMaterial({ color: "#6a7b69", roughness: 1 }),
@@ -128,7 +140,7 @@ export class Environment {
       water.position.set(-850, 0.2, 0);
       this.root.add(water);
     }
-    if (track.definition.theme === "city") this.addCity(track, random);
+    if (track.definition.theme === "city") this.addCity(track, random, assets);
     for (const corner of track.corners)
       for (const distance of [100, 50]) {
         const index =
@@ -183,71 +195,66 @@ export class Environment {
     group.add(board, post);
     this.root.add(group);
   }
-  private addCity(track: Track, random: () => number): void {
-    const canvas = document.createElement("canvas");
-    canvas.width = 128;
-    canvas.height = 256;
-    const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "#50616b";
-    ctx.fillRect(0, 0, 128, 256);
-    for (let y = 8; y < 250; y += 24)
-      for (let x = 8; x < 120; x += 22) {
-        ctx.fillStyle = random() > 0.7 ? "#c7c4a2" : "#253c4c";
-        ctx.fillRect(x, y, 12, 15);
+  private addCity(track: Track, random: () => number, assets: EnvironmentAssets): void {
+    const models = [
+      buildingModel(assets.surface("concrete_wall_006"), 4, true),
+      buildingModel(assets.surface("concrete_wall_006"), 8, false),
+      buildingModel(assets.surface("concrete_wall_006"), 6, true),
+    ];
+    for (const model of models) {
+      const meshes = model.children.map((child) => {
+        const source = child as Mesh;
+        const mesh = new InstancedMesh(source.geometry, source.material, 26);
+        mesh.castShadow = mesh.receiveShadow = true;
+        this.root.add(mesh);
+        return mesh;
+      });
+      for (let i = 0; i < 26; i++) {
+        let x = 0,
+          z = 0,
+          d = 0;
+        do {
+          const s = track.samples[Math.floor(random() * track.samples.length)];
+          const offset = (random() > 0.5 ? 1 : -1) * (38 + random() * 100);
+          x = s.x + s.tz * offset;
+          z = s.z - s.tx * offset;
+          const n = track.samples[track.nearest(x, z)];
+          d = Math.hypot(n.x - x, n.z - z);
+        } while (d < 32);
+        this.dummy.position.set(x, terrainHeight(track, x, z) - 0.25, z);
+        this.dummy.scale.setScalar(0.85 + random() * 0.3);
+        this.dummy.rotation.set(0, (Math.round(random() * 4) * Math.PI) / 2, 0);
+        this.dummy.updateMatrix();
+        for (const mesh of meshes) mesh.setMatrixAt(i, this.dummy.matrix);
       }
-    const map = new CanvasTexture(canvas);
-    map.colorSpace = SRGBColorSpace;
-    const buildings = new InstancedMesh(
-      new BoxGeometry(1, 1, 1),
-      new MeshStandardNodeMaterial({ map, roughness: 0.7 }),
-      120,
-    );
-    for (let i = 0; i < 120; i++) {
-      let x = 0,
-        z = 0,
-        d = 0;
-      do {
-        const s = track.samples[Math.floor(random() * track.samples.length)];
-        const offset = (random() > 0.5 ? 1 : -1) * (40 + random() * 120);
-        x = s.x + s.tz * offset;
-        z = s.z - s.tx * offset;
-        const n = track.samples[track.nearest(x, z)];
-        d = Math.hypot(n.x - x, n.z - z);
-      } while (d < 35);
-      const height = 12 + random() * 44;
-      this.dummy.position.set(x, terrainHeight(track, x, z) + height / 2, z);
-      this.dummy.scale.set(12 + random() * 12, height, 12 + random() * 12);
-      this.dummy.rotation.set(0, (Math.round(random() * 4) * Math.PI) / 2, 0);
-      this.dummy.updateMatrix();
-      buildings.setMatrixAt(i, this.dummy.matrix);
+      model.clear();
     }
-    buildings.castShadow = true;
-    buildings.receiveShadow = true;
-    this.root.add(buildings);
   }
   update(position: Vector3, dt: number): void {
     this.countdown -= dt;
     if (this.countdown > 0) return;
     this.countdown = 0.15;
-    let near = 0,
-      far = 0;
-    for (const tree of this.trees) {
-      const detailed = tree.position.distanceToSquared(position) < this.detailDistance ** 2;
-      const mesh = detailed ? this.near : this.far;
-      const i = detailed ? near++ : far++;
-      this.dummy.position.copy(tree.position);
-      this.dummy.scale.setScalar(tree.scale);
-      this.dummy.rotation.set(0, 0, 0);
-      this.dummy.updateMatrix();
-      mesh.setMatrixAt(i, this.dummy.matrix);
-      mesh.setColorAt(i, tree.color);
-    }
-    this.near.count = near;
-    this.far.count = far;
-    for (const mesh of [this.near, this.far]) {
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      mesh.computeBoundingSphere();
+    for (const batch of this.batches) {
+      let near = 0,
+        far = 0;
+      for (const placement of batch.placements) {
+        const distance = placement.position.distanceTo(position);
+        if (distance > Math.max(260, this.detailDistance * 2.5)) continue;
+        const detailed = distance < this.detailDistance;
+        const index = detailed ? near++ : far++;
+        this.dummy.position.copy(placement.position);
+        this.dummy.scale.setScalar(placement.height);
+        this.dummy.rotation.set(0, placement.yaw, 0);
+        this.dummy.updateMatrix();
+        for (const mesh of detailed ? batch.near : batch.far)
+          mesh.setMatrixAt(index, this.dummy.matrix);
+      }
+      for (const mesh of batch.near) mesh.count = near;
+      for (const mesh of batch.far) mesh.count = far;
+      for (const mesh of [...batch.near, ...batch.far]) {
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.computeBoundingSphere();
+      }
     }
   }
 }

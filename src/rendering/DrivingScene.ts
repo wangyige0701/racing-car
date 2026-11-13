@@ -22,11 +22,13 @@ import {
 import { disposeObject } from "./dispose";
 import { TireSmoke } from "./TireSmoke";
 import { Environment, terrainGeometry } from "./Environment";
+import type { EnvironmentAssets } from "./EnvironmentAssets";
 import { roadSurface } from "./RoadSurface";
 import { TireMarks } from "./TireMarks";
 import { QUALITY, type Quality } from "./quality";
 import { ContactSparks } from "./ContactSparks";
-import { color, mix, positionWorld, sin } from "three/tsl";
+import { pitBuilding } from "./Architecture";
+import { guardrails } from "./RoadFurniture";
 import { VehicleVisual } from "../vehicle/VehicleVisual";
 import { CameraManager } from "../camera/CameraManager";
 import type { Track } from "../track/Track";
@@ -48,9 +50,9 @@ export class DrivingScene {
     return this.cameras.camera;
   }
 
-  constructor(track: Track, vehicle: VehicleVisual) {
+  constructor(track: Track, vehicle: VehicleVisual, assets: EnvironmentAssets) {
     this.vehicle = vehicle;
-    this.scenery = new Environment(track);
+    this.scenery = new Environment(track, assets);
     this.scene.add(this.scenery.root, this.marks.root);
     // Small generated sky reflection, prefiltered by WebGPU for the GLB PBR paint.
     const pixels = new Uint8Array(256 * 128 * 4);
@@ -91,19 +93,18 @@ export class DrivingScene {
     this.sun.shadow.normalBias = 0.035;
     this.scene.add(this.sun, this.sun.target, this.vehicle.root, this.smoke.root, this.sparks.root);
 
-    const grass = new MeshStandardNodeMaterial({ roughness: 1 });
-    grass.colorNode = mix(
-      color(track.definition.theme === "city" ? "#747d78" : "#5f7650"),
-      color(track.definition.theme === "city" ? "#808a82" : "#8b965f"),
-      sin(positionWorld.x.mul(0.1))
-        .mul(sin(positionWorld.z.mul(0.13)))
-        .mul(0.5)
-        .add(0.5),
+    const grass = assets.surface(
+      track.definition.theme === "city" ? "concrete_wall_006" : "forest_ground_04",
     );
-    const ground = this.mesh(terrainGeometry(track), grass);
+    const terrain = terrainGeometry(track);
+    const positions = terrain.getAttribute("position"),
+      uv = terrain.getAttribute("uv");
+    for (let i = 0; i < positions.count; i++)
+      uv.setXY(i, positions.getX(i) / 6, positions.getZ(i) / 6);
+    const ground = this.mesh(terrain, grass);
     ground.receiveShadow = true;
 
-    const roadMaterial = roadSurface();
+    const roadMaterial = roadSurface(assets);
     const roadGeometry = new BufferGeometry();
     roadGeometry.setAttribute("position", new BufferAttribute(track.vertices, 3));
     roadGeometry.setIndex(new BufferAttribute(track.indices, 1));
@@ -118,13 +119,7 @@ export class DrivingScene {
     road.receiveShadow = true;
     const markings = new MeshStandardNodeMaterial({ color: "#e4e4c8", roughness: 0.9 });
     const curbMaterial = new MeshStandardNodeMaterial({ roughness: 0.8 });
-    const barrierMaterial = new MeshStandardNodeMaterial({
-      color: "#bcc1b6",
-      metalness: 0.25,
-      roughness: 0.75,
-    });
     const segments = track.barrierSegments();
-    const barriers = new InstancedMesh(new BoxGeometry(1, 1, 1), barrierMaterial, segments.length);
     const curbs = new InstancedMesh(new BoxGeometry(1, 1, 1), curbMaterial, segments.length);
     const lines = new InstancedMesh(new BoxGeometry(1, 1, 1), markings, track.samples.length * 2);
     const dashes = new InstancedMesh(
@@ -133,13 +128,6 @@ export class DrivingScene {
       Math.ceil(track.samples.length / 2),
     );
     const dummy = new Object3D();
-    segments.forEach((s, i) => {
-      dummy.position.set(s.x, s.y + 0.65, s.z);
-      dummy.quaternion.copy(s.rotation);
-      dummy.scale.set(0.46, 1.3, s.length);
-      dummy.updateMatrix();
-      barriers.setMatrixAt(i, dummy.matrix);
-    });
     track.samples.forEach((s, i) => {
       const n = track.samples[(i + 1) % track.samples.length];
       const length = Math.hypot(n.x - s.x, n.y - s.y, n.z - s.z) + 0.12;
@@ -174,10 +162,8 @@ export class DrivingScene {
         dashes.setMatrixAt(i / 2, dummy.matrix);
       }
     });
-    barriers.castShadow = true;
-    barriers.receiveShadow = true;
-    this.scene.add(barriers, curbs, lines, dashes);
-    this.addLandscape(track);
+    this.scene.add(guardrails(track), curbs, lines, dashes);
+    this.addLandscape(track, assets);
     this.addStartGate(track);
   }
 
@@ -187,35 +173,11 @@ export class DrivingScene {
     return mesh;
   }
 
-  private addLandscape(track: Track): void {
-    const building = new Group();
+  private addLandscape(track: Track, assets: EnvironmentAssets): void {
+    const building = pitBuilding(assets.surface("concrete_wall_006"));
     const start = track.samples[12];
-    building.position.set(start.x + start.tz * 27, start.y, start.z - start.tx * 27);
+    building.position.set(start.x + start.tz * 27, start.y - 0.3, start.z - start.tx * 27);
     building.rotation.y = Math.atan2(start.tx, start.tz);
-    const wall = new MeshStandardNodeMaterial({ color: "#b9baaa", roughness: 0.85 });
-    const glass = new MeshStandardNodeMaterial({
-      color: "#334c50",
-      metalness: 0.45,
-      roughness: 0.23,
-    });
-    const base = this.mesh(new BoxGeometry(12, 5, 34), wall, building);
-    base.position.y = 2.5;
-    const windows = this.mesh(new BoxGeometry(12.1, 1.8, 30), glass, building);
-    windows.position.y = 3.2;
-    const roof = this.mesh(new BoxGeometry(13, 0.3, 35), wall, building);
-    roof.position.y = 5.1;
-    for (let i = 0; i < 6; i++) {
-      const door = this.mesh(new BoxGeometry(0.04, 3.2, 3.5), glass, building);
-      door.position.set(-6.03, 1.6, -13 + i * 5.2);
-      const trim = this.mesh(new BoxGeometry(0.12, 0.18, 3.7), wall, building);
-      trim.position.set(-6.08, 3.25, -13 + i * 5.2);
-    }
-    building.traverse((o) => {
-      if (o instanceof Mesh) {
-        o.castShadow = true;
-        o.receiveShadow = true;
-      }
-    });
     this.scene.add(building);
   }
 

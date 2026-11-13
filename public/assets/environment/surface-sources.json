@@ -1,0 +1,73 @@
+﻿[
+  {
+    "id": "asphalt_02",
+    "authors": {
+      "Rob Tuytel": "All"
+    },
+    "files": {
+      "nor_gl": {
+        "size": 1240122,
+        "md5": "338da8de636ea36133170578cac82e8e",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_nor_gl_1k.jpg"
+      },
+      "arm": {
+        "size": 296770,
+        "md5": "33820445f43af5e5ee484674b6939271",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_arm_1k.jpg"
+      },
+      "Diffuse": {
+        "size": 731707,
+        "md5": "fa19772d4817754c3efab708c651f5a8",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_diff_1k.jpg"
+      }
+    }
+  },
+  {
+    "id": "forest_ground_04",
+    "authors": {
+      "Rob Tuytel": "Photography, Processing",
+      "Rico Cilliers": "Minor adjustment"
+    },
+    "files": {
+      "nor_gl": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_04/forest_ground_04_nor_gl_1k.jpg",
+        "size": 1326812,
+        "md5": "a010a0802c2d9a930c6f00d3b1f196d2"
+      },
+      "arm": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_04/forest_ground_04_arm_1k.jpg",
+        "size": 882694,
+        "md5": "3fbb079d961f59b8fac7ec4f6dab9f20"
+      },
+      "Diffuse": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/forest_ground_04/forest_ground_04_diff_1k.jpg",
+        "size": 1113899,
+        "md5": "6ad9df4d731a238299806f739a26af83"
+      }
+    }
+  },
+  {
+    "id": "concrete_wall_006",
+    "authors": {
+      "Dario Barresi": "Processing",
+      "Charlotte Baglioni": "Photography"
+    },
+    "files": {
+      "nor_gl": {
+        "size": 1195078,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_006/concrete_wall_006_nor_gl_1k.jpg",
+        "md5": "337cf8d33598e1ecd036ef3727a4b36d"
+      },
+      "arm": {
+        "size": 963446,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_006/concrete_wall_006_arm_1k.jpg",
+        "md5": "171452c48704f7fa7f55d5cbaf17c85c"
+      },
+      "Diffuse": {
+        "size": 769415,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_006/concrete_wall_006_diff_1k.jpg",
+        "md5": "62ac61307a3321ecec26e1abd045f2ab"
+      }
+    }
+  }
+]

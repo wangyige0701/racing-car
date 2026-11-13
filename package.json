@@ -10,7 +10,8 @@
     "typecheck": "vue-tsc --noEmit",
     "test": "playwright test",
     "format:check": "oxfmt --check .",
-    "assets:vehicle": "node scripts/prepare-vehicle.mjs"
+    "assets:vehicle": "node scripts/prepare-vehicle.mjs",
+    "assets:environment": "node scripts/prepare-environment.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
@@ -28,6 +29,7 @@
     "@webgpu/types": "0.1.74",
     "meshoptimizer": "1.3.0",
     "oxfmt": "0.78.0",
+    "sharp": "0.35.5",
     "typescript": "6.0.3",
     "vite": "8.3.8",
     "vue-tsc": "3.3.14"
