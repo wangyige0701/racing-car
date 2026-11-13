@@ -197,3 +197,63 @@ test("steering is progressive, turns the chassis, and reset clears motion", asyn
     physics.dispose();
   }
 });
+
+test("barrier feedback scales with impact speed and expires after separation", async () => {
+  const levels: number[] = [];
+  for (const speed of [3, 18]) {
+    const { physics, vehicle, track, step } = await setup();
+    try {
+      const s = track.samples[10];
+      const yaw = Math.atan2(s.tx, s.tz) + Math.PI / 2;
+      vehicle.body.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true);
+      vehicle.body.setLinvel({ x: s.tz * speed, y: 0, z: -s.tx * speed }, true);
+      vehicle.afterStep(0);
+      let peak = 0;
+      for (let i = 0; i < 240; i++) {
+        step(1);
+        peak = Math.max(peak, physics.impactStrength);
+      }
+      levels.push(peak);
+      expect(physics.impactId).toBeGreaterThan(0);
+      expect(Number.isFinite(vehicle.speed)).toBe(true);
+      vehicle.reset(true);
+      physics.resetFeedback();
+      step(180);
+      expect(physics.impactAge).toBeGreaterThan(2);
+      expect(physics.scrape).toBeLessThan(0.01);
+    } finally {
+      physics.dispose();
+    }
+  }
+  expect(levels[0]).toBeGreaterThan(0);
+  expect(levels[1]).toBeGreaterThan(levels[0] * 2);
+});
+
+test("an oblique barrier scrape preserves forward progress without flipping", async () => {
+  const { physics, vehicle, track, step } = await setup();
+  try {
+    const s = track.samples[10];
+    vehicle.body.setTranslation(
+      { x: s.x + s.tz * 7.6, y: vehicle.position.y, z: s.z - s.tx * 7.6 },
+      true,
+    );
+    vehicle.body.setLinvel({ x: s.tx * 18 + s.tz * 3, y: 0, z: s.tz * 18 - s.tx * 3 }, true);
+    vehicle.afterStep(0);
+    const start = vehicle.position.clone();
+    const yaw = Math.atan2(s.tx, s.tz) + 0.12;
+    vehicle.body.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true);
+    vehicle.afterStep(0);
+    let scrape = 0;
+    for (let i = 0; i < 60; i++) {
+      step(1);
+      scrape = Math.max(scrape, physics.scrape);
+    }
+    expect(scrape).toBeGreaterThan(0.01);
+    expect(vehicle.position.clone().sub(start).dot({ x: s.tx, y: 0, z: s.tz })).toBeGreaterThan(5);
+    expect(1 - 2 * (vehicle.rotation.x ** 2 + vehicle.rotation.z ** 2)).toBeGreaterThan(0.8);
+    step(120, { throttle: 0.4, brake: 0, handbrake: 0, steer: 0.3 });
+    expect(vehicle.groundedWheels).toBeGreaterThanOrEqual(3);
+  } finally {
+    physics.dispose();
+  }
+});

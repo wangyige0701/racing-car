@@ -23,6 +23,7 @@ import {
 } from "three/webgpu";
 import { disposeObject } from "./dispose";
 import { TireSmoke } from "./TireSmoke";
+import { ContactSparks } from "./ContactSparks";
 import { color, mix, positionWorld, sin } from "three/tsl";
 import { VehicleVisual } from "../vehicle/VehicleVisual";
 import { CameraManager } from "../camera/CameraManager";
@@ -35,7 +36,9 @@ export class DrivingScene {
   readonly cameras = new CameraManager();
   readonly vehicle: VehicleVisual;
   readonly smoke = new TireSmoke();
+  readonly sparks = new ContactSparks();
   private readonly environment: DataTexture;
+  private lastImpact = 0;
   readonly sun = new DirectionalLight("#fff0c8", 3.6);
   get camera() {
     return this.cameras.camera;
@@ -80,7 +83,7 @@ export class DrivingScene {
       far: 120,
     });
     this.sun.shadow.normalBias = 0.035;
-    this.scene.add(this.sun, this.sun.target, this.vehicle.root, this.smoke.root);
+    this.scene.add(this.sun, this.sun.target, this.vehicle.root, this.smoke.root, this.sparks.root);
 
     const grass = new MeshStandardNodeMaterial({ roughness: 1 });
     grass.colorNode = mix(
@@ -326,6 +329,8 @@ export class DrivingScene {
     this.updateCamera(vehicle, dt, physics, snap);
     if (snap) this.smoke.clear();
     else this.smoke.update(vehicle, this.camera, dt);
+    if (snap) this.sparks.clear();
+    else this.sparks.update(physics, dt);
     this.sun.target.position.copy(this.vehicle.root.position);
     this.sun.position.copy(this.vehicle.root.position).add({ x: -25, y: 50, z: -20 });
   }
@@ -334,6 +339,8 @@ export class DrivingScene {
   }
 
   updateCamera(vehicle: VehiclePhysics, dt: number, physics: PhysicsWorld, snap = false): void {
+    if (!snap && physics.impactId !== this.lastImpact) this.cameras.kick(physics.impactStrength);
+    this.lastImpact = physics.impactId;
     this.cameras.update(this.vehicle.root, vehicle.speed, dt, physics.world, snap);
     this.vehicle.setView(this.cameras.mode);
   }

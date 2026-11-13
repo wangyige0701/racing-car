@@ -8,6 +8,7 @@ export class VehicleAudio {
   private tireGain?: GainNode;
   private windGain?: GainNode;
   private impactGain?: GainNode;
+  private scrapeGain?: GainNode;
   private filter?: BiquadFilterNode;
   private readonly oscillators: OscillatorNode[] = [];
   private noise?: AudioBufferSourceNode;
@@ -97,6 +98,7 @@ export class VehicleAudio {
     this.tireGain = branch("bandpass", 1900);
     this.windGain = branch("lowpass", 450);
     this.impactGain = branch("lowpass", 180);
+    this.scrapeGain = branch("bandpass", 700);
     this.noise.start();
   }
 
@@ -115,7 +117,13 @@ export class VehicleAudio {
     if (!this.muted) void this.unlock();
   }
 
-  update(vehicle: VehiclePhysics, collisions: number, cockpit: boolean): void {
+  update(
+    vehicle: VehiclePhysics,
+    collisions: number,
+    cockpit: boolean,
+    impact = 1,
+    scrape = 0,
+  ): void {
     const ctx = this.context;
     const newCollision = collisions > this.lastCollision;
     this.lastCollision = collisions;
@@ -153,13 +161,17 @@ export class VehicleAudio {
     if (newCollision && now - this.lastImpact > 0.18 && this.active) {
       this.lastImpact = now;
       this.impactGain!.gain.cancelScheduledValues(now);
-      this.impactGain!.gain.setValueAtTime(0.28, now);
+      this.impactGain!.gain.setValueAtTime(0.04 + impact * 0.38, now);
       this.impactGain!.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
     }
+    this.scrapeGain!.gain.setTargetAtTime(scrape * 0.12, now, 0.05);
   }
 
   reset(): void {
     this.lastCollision = 0;
+    this.lastImpact = -1;
+    if (this.context && this.scrapeGain)
+      this.scrapeGain.gain.setValueAtTime(0, this.context.currentTime);
     if (this.context && this.impactGain) {
       this.impactGain.gain.cancelScheduledValues(this.context.currentTime);
       this.impactGain.gain.value = 0;
@@ -194,6 +206,7 @@ export class VehicleAudio {
     this.context = undefined;
     this.master = this.engineGain = this.tireGain = this.windGain = this.impactGain = undefined;
     this.noise = undefined;
+    this.scrapeGain = undefined;
     this.filter = undefined;
   }
 }

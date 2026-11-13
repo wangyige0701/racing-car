@@ -118,8 +118,10 @@ export class GameApplication {
       } else this.scene.updateCamera(this.vehicle, delta, this.physics);
       this.audio?.update(
         this.vehicle,
-        this.physics.collisionCount,
+        this.physics.impactId,
         this.scene.cameras.mode === "cockpit",
+        this.physics.impactStrength,
+        this.physics.scrape,
       );
       if (
         Math.min(window.devicePixelRatio || 1, this.pixelRatioCap) !== this.diagnostics.pixelRatio
@@ -220,7 +222,7 @@ export class GameApplication {
     if (!this.physics || !this.scene || !this.vehicle) return;
     this.input?.clear();
     this.vehicle.reset();
-    this.physics.collisionCount = 0;
+    this.physics.resetFeedback();
     this.audio?.reset();
     this.elapsed = 0;
     this.scene.update(this.vehicle, 1, 0, this.physics, true);
@@ -266,6 +268,8 @@ export class GameApplication {
           (Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180) /
           Math.PI,
         collisions: this.physics?.collisionCount ?? 0,
+        impactStrength: this.physics?.impactStrength ?? 0,
+        collisionRecent: (this.physics?.impactAge ?? 10) < 2,
         inputSource: this.input?.source ?? "键盘",
         handbrake: v.handbrake,
         rearGrip: v.drift.rearGrip,

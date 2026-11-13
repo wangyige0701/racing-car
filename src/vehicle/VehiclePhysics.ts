@@ -58,12 +58,15 @@ export class VehiclePhysics {
         .setCcdEnabled(true),
     );
     world.createCollider(
-      RAPIER.ColliderDesc.cuboid(0.91, 0.23, 2.04)
+      RAPIER.ColliderDesc.roundCuboid(0.79, 0.11, 1.92, 0.12)
         .setTranslation(0, 0.12, 0)
         .setDensity(0)
         .setFriction(0.25)
         .setRestitution(0.05)
-        .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS),
+        .setActiveEvents(
+          RAPIER.ActiveEvents.COLLISION_EVENTS | RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS,
+        )
+        .setContactForceEventThreshold(200),
       this.body,
     );
     this.controller = world.createVehicleController(this.body);

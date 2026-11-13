@@ -26,6 +26,8 @@ export interface Diagnostics {
   distance: number;
   elapsed: number;
   collisions: number;
+  impactStrength: number;
+  collisionRecent: boolean;
   trackLength: number;
   mapPoints: string;
   mapX: number;
@@ -69,6 +71,8 @@ export function initialDiagnostics(): Diagnostics {
     distance: 0,
     elapsed: 0,
     collisions: 0,
+    impactStrength: 0,
+    collisionRecent: false,
     trackLength: 0,
     mapPoints: "",
     mapX: 0,

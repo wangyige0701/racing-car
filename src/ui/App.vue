@@ -241,8 +241,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           >
             <kbd>W</kbd><span>轻踩油门，开始你的第一圈。</span>
           </div>
-          <div v-if="diagnostics.collisions > 0 && !paused" class="collision-note">
-            已接触护栏 · 如被卡住，按 R 回到赛道
+          <div v-if="diagnostics.collisionRecent && !paused" class="collision-note">
+            {{ diagnostics.impactStrength > 0.35 ? "撞击护栏" : "轻微接触" }} · 调整方向继续行驶
           </div>
           <div
             class="dynamics-hud"

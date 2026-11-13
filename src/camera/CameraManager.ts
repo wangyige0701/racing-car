@@ -22,6 +22,12 @@ export class CameraManager {
   private initialized = false;
   private portrait = false;
   private index = 0;
+  private impact = 0;
+  private impactTime = 0;
+  kick(strength: number): void {
+    this.impact = Math.max(this.impact, strength);
+    this.impactTime = 0;
+  }
   get mode(): CameraMode {
     return CAMERA_MODES[this.index];
   }
@@ -57,6 +63,10 @@ export class CameraManager {
     const blend = this.progress * this.progress * (3 - 2 * this.progress);
     this.camera.position.lerpVectors(this.fromPosition, this.target.position, blend);
     this.camera.quaternion.slerpQuaternions(this.fromRotation, this.target.quaternion, blend);
+    if (snap) this.impact = 0;
+    this.impactTime += Math.max(0, Math.min(dt, 0.1));
+    this.impact *= Math.exp(-10 * Math.max(0, dt));
+    this.camera.rotateX(Math.sin(this.impactTime * 40) * this.impact * 0.025);
     // Guard the actual blended camera arm, including transitions between modes.
     this.rayOrigin.copy(car.position).add({ x: 0, y: 0.65, z: 0 });
     this.direction.subVectors(this.camera.position, this.rayOrigin);
