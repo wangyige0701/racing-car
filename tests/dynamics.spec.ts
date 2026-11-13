@@ -133,3 +133,33 @@ test("high speed steering remains bounded and suspension settles after a landing
     world.free();
   }
 });
+
+test("short handbrake slides remain recoverable at multiple approach speeds", async () => {
+  for (const kmh of [40, 60, 90]) {
+    const { world, vehicle, step } = await pad();
+    try {
+      for (let frame = 0; frame < 600 && vehicle.speed < kmh / 3.6; frame++)
+        step(1, { throttle: 1 });
+      const entry = vehicle.speed;
+      step(18, { throttle: 0.5, steer: 0.7, handbrake: 1 });
+      let peak = 0;
+      for (let frame = 0; frame < 90; frame++) {
+        step(1, {
+          throttle: 0.5,
+          steer: frame < 18 ? 0.4 : -Math.max(-0.7, Math.min(0.7, vehicle.drift.slipAngle * 1.8)),
+        });
+        peak = Math.max(peak, Math.abs(vehicle.drift.slipAngle));
+        expect(new Vector3(0, 1, 0).applyQuaternion(vehicle.rotation).y).toBeGreaterThan(0.85);
+      }
+      expect(peak).toBeLessThan(1.2);
+      expect(vehicle.speed).toBeGreaterThan(entry * 0.25);
+      for (let frame = 0; frame < 240; frame++)
+        step(1, { steer: -Math.max(-0.7, Math.min(0.7, vehicle.drift.slipAngle * 1.8)) });
+      expect(Math.abs(vehicle.drift.slipAngle)).toBeLessThan(0.13);
+      expect(vehicle.drift.rearGrip).toBeGreaterThan(0.99);
+      expect(vehicle.groundedWheels).toBe(4);
+    } finally {
+      world.free();
+    }
+  }
+});

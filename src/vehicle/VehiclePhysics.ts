@@ -29,6 +29,7 @@ export class VehiclePhysics {
   readonly previousWheelAngles = [0, 0, 0, 0];
   private direction = 1;
   private directionWait = 0;
+  private driveCoupling = 1;
   private readonly forward = new Vector3();
   private readonly velocity = new Vector3();
   private readonly force = new Vector3();
@@ -123,11 +124,28 @@ export class VehiclePhysics {
     const targetThrottle = this.brake > 0 ? 0 : drive;
     this.throttle += (targetThrottle - this.throttle) * (1 - Math.exp(-VEHICLE.throttleRate * dt));
     if (this.brake > 0) this.throttle = 0;
-    const steerLimit = VEHICLE.maxSteer / (1 + (Math.abs(this.speed) / 15) ** 2);
+    const countersteer =
+      this.groundedWheels >= 3 &&
+      this.speed > VEHICLE.drift.minSpeed &&
+      -input.steer * this.drift.slipAngle > 0;
+    const slide = Math.min(1, Math.abs(this.drift.slipAngle) / 0.4);
+    const steerLimit = Math.min(
+      VEHICLE.maxSteer,
+      (VEHICLE.maxSteer / (1 + (Math.abs(this.speed) / 15) ** 2)) *
+        (1 + (countersteer ? VEHICLE.countersteerReserve * slide : 0)),
+    );
     const targetSteer = -Math.max(-1, Math.min(1, input.steer)) * steerLimit;
-    this.steer += (targetSteer - this.steer) * (1 - Math.exp(-VEHICLE.steeringRate * dt));
+    this.steer +=
+      (targetSteer - this.steer) *
+      (1 - Math.exp(-(countersteer ? VEHICLE.countersteerRate : VEHICLE.steeringRate) * dt));
     const speed = Math.abs(this.speed);
     this.drift.updateGrip(dt, this.handbrake, this.throttle, this.steer, this.speed);
+    // Handbrake cuts drive immediately; clutch-like recovery prevents a torque step on release.
+    this.driveCoupling = Math.min(
+      1 - this.handbrake,
+      this.driveCoupling +
+        (1 - this.driveCoupling) * (1 - Math.exp(-VEHICLE.driveRecoveryRate * dt)),
+    );
     const gearIndex = VEHICLE.gearSpeeds.reduce<number>(
       (best, threshold, i) => (speed >= threshold ? i : best),
       0,
@@ -156,7 +174,7 @@ export class VehiclePhysics {
       const grip = rear ? this.drift.rearGrip : 1;
       this.controller.setWheelFrictionSlip(i, VEHICLE.tireFriction * grip);
       this.controller.setWheelSideFrictionStiffness(i, VEHICLE.sideFriction * grip);
-      this.controller.setWheelEngineForce(i, rear ? (driveForce * (1 - this.handbrake)) / 2 : 0);
+      this.controller.setWheelEngineForce(i, rear ? (driveForce * this.driveCoupling) / 2 : 0);
       this.controller.setWheelBrake(
         i,
         dt *
@@ -184,7 +202,12 @@ export class VehiclePhysics {
       this.force
         .copy(this.up)
         .multiplyScalar(
-          -yawRate * VEHICLE.inertia.y * VEHICLE.groundYawDamping * (1 - this.handbrake * 0.65),
+          -yawRate *
+            VEHICLE.inertia.y *
+            VEHICLE.groundYawDamping *
+            (0.35 +
+              (0.65 * (this.drift.rearGrip - VEHICLE.drift.rearGripMinimum)) /
+                (1 - VEHICLE.drift.rearGripMinimum)),
         );
       this.body.addTorque(this.force, false);
     }
@@ -246,6 +269,7 @@ export class VehiclePhysics {
     this.body.resetTorques(true);
     this.direction = 1;
     this.directionWait = 0;
+    this.driveCoupling = 1;
     this.speed = this.throttle = this.brake = this.steer = this.previousSteer = this.distance = 0;
     this.gear = 1;
     this.rpm = 950;

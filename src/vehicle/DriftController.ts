@@ -11,8 +11,9 @@ export class DriftController {
     const config = VEHICLE.drift;
     // A sliding, driven rear axle retains some slip after release, then recovers
     // as the driver countersteers or lifts. Never remove lateral traction entirely.
-    const sliding = speed > config.minSpeed && Math.abs(this.slipAngle) > config.exitAngle;
-    const powerSlip = sliding ? Math.min(0.22, Math.abs(this.slipAngle) * throttle * 0.35) : 0;
+    const slip = Math.max(0, Math.abs(this.slipAngle) - config.exitAngle);
+    const speedBlend = Math.max(0, Math.min(1, (speed - config.minSpeed) / 3));
+    const powerSlip = speedBlend * Math.min(0.22, slip * throttle * 0.5);
     const countersteer = steer * this.slipAngle > 0;
     const target = Math.max(
       config.rearGripMinimum,

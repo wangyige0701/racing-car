@@ -33,6 +33,9 @@ export const VEHICLE = {
   maxBrakeForce: 14000,
   handbrakeForce: 9500,
   groundYawDamping: 1.7,
+  countersteerRate: 7,
+  countersteerReserve: 0.3,
+  driveRecoveryRate: 6,
   drift: {
     rearGripMinimum: 0.48,
     releaseRate: 2.6,
