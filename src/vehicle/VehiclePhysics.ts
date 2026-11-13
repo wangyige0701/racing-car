@@ -15,6 +15,7 @@ export class VehiclePhysics {
   readonly wheelLengths = [0.32, 0.32, 0.32, 0.32];
   readonly previousWheelLengths = [0.32, 0.32, 0.32, 0.32];
   speed = 0;
+  acceleration = 0;
   throttle = 0;
   brake = 0;
   steer = 0;
@@ -241,7 +242,12 @@ export class VehiclePhysics {
     this.readPose();
     this.forward.set(0, 0, 1).applyQuaternion(this.rotation);
     this.body.linvel(this.velocity);
-    this.speed = this.velocity.dot(this.forward);
+    const nextSpeed = this.velocity.dot(this.forward);
+    if (dt > 0)
+      this.acceleration +=
+        (Math.max(-20, Math.min(20, (nextSpeed - this.speed) / dt)) - this.acceleration) *
+        (1 - Math.exp(-8 * dt));
+    this.speed = nextSpeed;
     this.distance += this.position.distanceTo(this.previousPosition);
     this.groundedWheels = 0;
     for (let i = 0; i < 4; i++) {
@@ -273,6 +279,7 @@ export class VehiclePhysics {
     this.direction = 1;
     this.directionWait = 0;
     this.driveCoupling = 1;
+    this.acceleration = 0;
     this.speed = this.throttle = this.brake = this.steer = this.previousSteer = this.distance = 0;
     this.gear = 1;
     this.rpm = 950;

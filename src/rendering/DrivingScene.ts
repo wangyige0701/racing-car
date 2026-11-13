@@ -341,6 +341,7 @@ export class DrivingScene {
   updateCamera(vehicle: VehiclePhysics, dt: number, physics: PhysicsWorld, snap = false): void {
     if (!snap && physics.impactId !== this.lastImpact) this.cameras.kick(physics.impactStrength);
     this.lastImpact = physics.impactId;
+    this.cameras.setMotion(vehicle.steer, vehicle.acceleration);
     this.cameras.update(this.vehicle.root, vehicle.speed, dt, physics.world, snap);
     this.vehicle.setView(this.cameras.mode);
   }

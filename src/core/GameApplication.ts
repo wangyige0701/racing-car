@@ -11,6 +11,8 @@ import { Track } from "../track/Track";
 import { InputManager } from "../input/InputManager";
 import type { TouchControl } from "../input/InputManager";
 import { emptyInput } from "../vehicle/config";
+import type { CameraSettings } from "../camera/config";
+import { DEFAULT_CAMERA_SETTINGS } from "../camera/config";
 
 /** Runtime state stays outside Vue; HUD snapshots are published at 10 Hz. */
 export class GameApplication {
@@ -31,6 +33,7 @@ export class GameApplication {
   private lastPublish = 0;
   private sampledFrames = 0;
   private pixelRatioCap = 2;
+  private cameraSettings = { ...DEFAULT_CAMERA_SETTINGS };
   private disposed = false;
   private releasing: Promise<void> = Promise.resolve();
 
@@ -74,6 +77,7 @@ export class GameApplication {
       this.emit();
       const visual = await VehicleVisual.load(signal);
       this.scene = new DrivingScene(track, visual);
+      this.scene.cameras.setSettings(this.cameraSettings);
       this.scene.update(this.vehicle, 1, 0, physics, true);
       this.host.append(graphics.renderer.domElement);
       this.resize();
@@ -112,6 +116,7 @@ export class GameApplication {
       const delta = (now - this.previousTime) / 1000;
       this.previousTime = now;
       this.input?.poll();
+      this.scene.cameras.lookDirection = this.input?.readLook() ?? 0;
       if (this.diagnostics.phase === "running") {
         const alpha = this.clock.advance(delta, this.simulate);
         this.scene.update(this.vehicle, alpha, delta, this.physics);
@@ -205,6 +210,14 @@ export class GameApplication {
 
   touchSteering(value: number): void {
     this.input?.setTouchSteering(value);
+  }
+
+  setCameraSettings(settings: CameraSettings): void {
+    this.cameraSettings = { ...settings };
+    this.scene?.cameras.setSettings(settings);
+  }
+  look(value: number): void {
+    this.input?.setLook(value);
   }
 
   cycleCamera(): void {

@@ -12,6 +12,8 @@ const drivingKeys = new Set([
   "ArrowLeft",
   "ArrowRight",
   "Space",
+  "KeyQ",
+  "KeyE",
 ]);
 
 /** Keyboard, standard gamepad and touch feed the same normalized driver contract. */
@@ -19,6 +21,7 @@ export class InputManager {
   private readonly keys = new Set<string>();
   private readonly touch = new Set<TouchControl>();
   private touchSteering = 0;
+  private touchLook = 0;
   private readonly value = emptyInput();
   private readonly pad = emptyInput();
   private padNeedsNeutral = true;
@@ -89,6 +92,15 @@ export class InputManager {
     if (this.touchSteering) this.source = "触控";
   }
 
+  setLook(value: number): void {
+    this.touchLook = this.enabled ? Math.max(-1, Math.min(1, value)) : 0;
+  }
+  readLook(): number {
+    return this.enabled
+      ? Number(this.keys.has("KeyQ")) - Number(this.keys.has("KeyE")) || this.touchLook
+      : 0;
+  }
+
   /** Action buttons are sampled while paused too, allowing Start to resume. */
   poll(): void {
     const pad = Array.from(navigator.getGamepads?.() ?? []).find(
@@ -150,6 +162,7 @@ export class InputManager {
     this.keys.clear();
     this.touch.clear();
     this.touchSteering = 0;
+    this.touchLook = 0;
     this.padNeedsNeutral = true;
     this.pad.throttle = this.pad.brake = this.pad.steer = this.pad.handbrake = 0;
     this.value.throttle = this.value.brake = this.value.steer = this.value.handbrake = 0;

@@ -5,6 +5,7 @@ import { ChaseCamera } from "./ChaseCamera";
 
 import { CAMERA_MODES, CAMERA_ANCHORS } from "./config";
 import type { CameraMode } from "./config";
+import { DEFAULT_CAMERA_SETTINGS, type CameraSettings } from "./config";
 
 /** One render camera; transitions use the interpolated chassis, independent of Vue. */
 export class CameraManager {
@@ -22,6 +23,22 @@ export class CameraManager {
   private initialized = false;
   private portrait = false;
   private index = 0;
+  readonly settings = { ...DEFAULT_CAMERA_SETTINGS };
+  lookDirection = 0;
+  private headYaw = 0;
+  private headZ = 0;
+  private steer = 0;
+  private acceleration = 0;
+  setSettings(settings: CameraSettings): void {
+    this.settings.fov = Math.max(55, Math.min(80, Number(settings.fov) || 65));
+    this.settings.height = Math.max(-0.04, Math.min(0.08, Number(settings.height) || 0));
+    this.settings.back = Math.max(-0.08, Math.min(0.06, Number(settings.back) || 0));
+    this.settings.motion = settings.motion;
+  }
+  setMotion(steer: number, acceleration: number): void {
+    this.steer = steer;
+    this.acceleration = acceleration;
+  }
   private impact = 0;
   private impactTime = 0;
   kick(strength: number): void {
@@ -47,10 +64,31 @@ export class CameraManager {
     } else {
       const anchor = CAMERA_ANCHORS[this.mode];
       this.target.position.set(anchor.x, anchor.y, anchor.z);
+      if (this.mode === "cockpit") {
+        const blend = snap ? 1 : 1 - Math.exp(-6 * Math.min(0.1, Math.max(0, dt)));
+        const turn =
+          this.settings.motion && speed > 4
+            ? Math.max(-0.07, Math.min(0.07, this.steer * 0.45))
+            : 0;
+        this.headYaw += (this.lookDirection * 0.85 + turn - this.headYaw) * blend;
+        this.headZ +=
+          ((this.settings.motion
+            ? Math.max(-0.025, Math.min(0.025, -this.acceleration * 0.002))
+            : 0) -
+            this.headZ) *
+          blend;
+        if (snap) this.headZ = this.headYaw = 0;
+        this.target.position.y += this.settings.height;
+        this.target.position.z = Math.max(
+          0.28,
+          Math.min(0.46, this.target.position.z + this.headZ - this.settings.back),
+        );
+      }
       this.target.position.applyQuaternion(car.quaternion).add(car.position);
       this.look.set(anchor.x, anchor.lookY, 45).applyQuaternion(car.quaternion).add(car.position);
       this.target.up.set(0, 1, 0).applyQuaternion(car.quaternion);
       this.target.lookAt(this.look);
+      if (this.mode === "cockpit") this.target.rotateY(this.headYaw);
     }
     if (snap || !this.initialized) {
       this.fromPosition.copy(this.target.position);
@@ -66,7 +104,8 @@ export class CameraManager {
     if (snap) this.impact = 0;
     this.impactTime += Math.max(0, Math.min(dt, 0.1));
     this.impact *= Math.exp(-10 * Math.max(0, dt));
-    this.camera.rotateX(Math.sin(this.impactTime * 40) * this.impact * 0.025);
+    if (this.settings.motion)
+      this.camera.rotateX(Math.sin(this.impactTime * 40) * this.impact * 0.025);
     // Guard the actual blended camera arm, including transitions between modes.
     this.rayOrigin.copy(car.position).add({ x: 0, y: 0.65, z: 0 });
     this.direction.subVectors(this.camera.position, this.rayOrigin);
@@ -79,7 +118,14 @@ export class CameraManager {
           .copy(this.rayOrigin)
           .addScaledVector(this.direction, Math.max(0, hit.timeOfImpact - 0.16));
     }
-    const fov = this.portrait ? 68 : this.mode === "chase" ? 56 : 65;
+    const fov =
+      this.mode === "cockpit"
+        ? this.settings.fov
+        : this.portrait
+          ? 68
+          : this.mode === "chase"
+            ? 56
+            : 65;
     this.camera.fov += (fov - this.camera.fov) * (snap ? 1 : 1 - Math.exp(-8 * dt));
     this.camera.updateProjectionMatrix();
     this.lastPosition.copy(car.position);

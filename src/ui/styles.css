@@ -1410,3 +1410,82 @@ footer i {
     margin-top: 12px;
   }
 }
+.onboard-view .speedometer {
+  width: 120px;
+  bottom: 50px;
+}
+.onboard-view .speed-value strong {
+  font-size: 44px;
+  letter-spacing: -2px;
+}
+.onboard-view .gear strong {
+  font-size: 24px;
+}
+.onboard-view .vehicle-name,
+.onboard-view .rpm-scale,
+.onboard-view .rpm-caption,
+.onboard-view .rpm-bar,
+.onboard-view .pedals {
+  display: none;
+}
+.onboard-view .track-map {
+  width: 72px;
+  padding: 6px;
+}
+.onboard-view .track-map svg {
+  height: 80px;
+}
+.onboard-view .map-heading,
+.onboard-view .map-caption {
+  display: none;
+}
+.camera-settings {
+  margin: 12px 0;
+  color: #d5e2bc;
+  font-size: 12px;
+}
+.camera-settings summary {
+  cursor: pointer;
+  padding: 5px 0;
+}
+.camera-settings label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0;
+}
+.camera-settings input[type="range"] {
+  width: 145px;
+}
+.look-controls {
+  position: absolute;
+  bottom: 45px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+.look-controls button {
+  min-width: 60px;
+  min-height: 44px;
+  touch-action: none;
+  border: 1px solid #d7edac40;
+  border-radius: 12px;
+  background: #10251c99;
+  color: #dfedc8;
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .look-controls {
+    bottom: 96px;
+  }
+  .onboard-view .speedometer {
+    bottom: auto;
+  }
+  .onboard-view .track-map {
+    width: 64px;
+  }
+  .onboard-view .track-map svg {
+    height: 68px;
+  }
+}

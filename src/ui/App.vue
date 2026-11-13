@@ -5,10 +5,20 @@ import { CAMERA_LABELS } from "../camera/config";
 import type { GameApplication } from "../core/GameApplication";
 import type { TouchControl } from "../input/InputManager";
 import TouchSteering from "./TouchSteering.vue";
+import { DEFAULT_CAMERA_SETTINGS } from "../camera/config";
 
 const viewport = ref<HTMLDivElement>();
 const diagnostics = shallowRef(initialDiagnostics());
 const quality = ref<"high" | "balanced">("high");
+const cameraSettings = ref({ ...DEFAULT_CAMERA_SETTINGS });
+function changeCamera() {
+  application?.setCameraSettings(cameraSettings.value);
+}
+function look(value: number, event: PointerEvent) {
+  event.preventDefault();
+  if (value) (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  application?.look(value);
+}
 let application: GameApplication | undefined;
 let unmounted = false;
 const ready = computed(() => ["running", "paused"].includes(diagnostics.value.phase));
@@ -139,6 +149,26 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           </button>
         </div>
         <div class="scene-vignette"></div>
+        <div v-if="ready && !paused && diagnostics.cameraMode === 'cockpit'" class="look-controls">
+          <button
+            aria-label="向左观察"
+            @pointerdown="look(1, $event)"
+            @pointerup="look(0, $event)"
+            @pointercancel="look(0, $event)"
+            @lostpointercapture="look(0, $event)"
+          >
+            ← 看左
+          </button>
+          <button
+            aria-label="向右观察"
+            @pointerdown="look(-1, $event)"
+            @pointerup="look(0, $event)"
+            @pointercancel="look(0, $event)"
+            @lostpointercapture="look(0, $event)"
+          >
+            看右 →
+          </button>
+        </div>
         <div class="scene-topline">
           <div class="session-title">
             <span class="live-dot" :class="{ inactive: diagnostics.phase !== 'running' }"></span
@@ -286,6 +316,44 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             <span class="eyebrow">TAKE A BREATHER</span>
             <h2>暂停一下，再出发。</h2>
             <p>失去焦点时会自动暂停。恢复后请重新操作油门。</p>
+            <details class="camera-settings">
+              <summary>驾驶舱设置</summary>
+              <label
+                >视野 {{ cameraSettings.fov }}°
+                <input
+                  type="range"
+                  min="55"
+                  max="80"
+                  step="1"
+                  v-model.number="cameraSettings.fov"
+                  @input="changeCamera"
+                  aria-label="驾驶舱视野"
+              /></label>
+              <label
+                >座椅高度
+                <input
+                  type="range"
+                  min="-0.04"
+                  max="0.08"
+                  step="0.01"
+                  v-model.number="cameraSettings.height"
+                  @input="changeCamera"
+              /></label>
+              <label
+                >座椅后移
+                <input
+                  type="range"
+                  min="-0.08"
+                  max="0.06"
+                  step="0.01"
+                  v-model.number="cameraSettings.back"
+                  @input="changeCamera"
+              /></label>
+              <label
+                ><input type="checkbox" v-model="cameraSettings.motion" @change="changeCamera" />
+                轻微惯性、看弯与撞击镜头</label
+              >
+            </details>
             <div class="mobile-settings">
               <button @click="application?.resetVehicle()">重置车辆</button>
               <button @click="application?.toggleAudio()">

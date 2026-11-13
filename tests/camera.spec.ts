@@ -74,3 +74,34 @@ test("chase and blended cameras are kept in front of a solid barrier", async () 
     world.free();
   }
 });
+
+test("cockpit settings and head motion stay bounded and can be disabled", async () => {
+  await RAPIER.init();
+  const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+  try {
+    const car = new Group();
+    car.position.y = 1;
+    const cameras = new CameraManager();
+    cameras.update(car, 0, 0, world, true);
+    cameras.cycle();
+    cameras.update(car, 0, 0, world, true);
+    cameras.setSettings({ fov: 75, height: 0.04, back: 0.08, motion: true });
+    cameras.lookDirection = 1;
+    cameras.setMotion(0.4, 20);
+    for (let i = 0; i < 120; i++) cameras.update(car, 20, 1 / 60, world);
+    expect(cameras.camera.fov).toBeCloseTo(75, 2);
+    expect(cameras.camera.getWorldDirection(new Vector3()).x).toBeGreaterThan(0.5);
+    expect(cameras.camera.position.distanceTo(car.position)).toBeLessThan(0.8);
+    cameras.lookDirection = 0;
+    cameras.setSettings({ fov: 65, height: 0, back: 0, motion: false });
+    cameras.kick(1);
+    for (let i = 0; i < 180; i++) cameras.update(car, 20, 1 / 60, world);
+    const anchor = CAMERA_ANCHORS.cockpit;
+    expect(
+      cameras.camera.position.distanceTo(new Vector3(anchor.x, anchor.y + 1, anchor.z)),
+    ).toBeLessThan(0.001);
+    expect(Math.abs(cameras.camera.getWorldDirection(new Vector3()).x)).toBeLessThan(0.001);
+  } finally {
+    world.free();
+  }
+});
