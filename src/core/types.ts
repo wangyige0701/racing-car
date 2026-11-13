@@ -50,6 +50,7 @@ export interface Diagnostics {
   rearGrip: number;
   slipAngle: number;
   drifting: boolean;
+  driftRecovering: boolean;
   driftTime: number;
   cameraMode: CameraMode;
   smokeParticles: number;
@@ -106,6 +107,7 @@ export function initialDiagnostics(): Diagnostics {
     rearGrip: 1,
     slipAngle: 0,
     drifting: false,
+    driftRecovering: false,
     driftTime: 0,
     cameraMode: "chase",
     smokeParticles: 0,

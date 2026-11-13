@@ -326,6 +326,7 @@ export class GameApplication {
         rearGrip: v.drift.rearGrip,
         slipAngle: (v.drift.slipAngle * 180) / Math.PI,
         drifting: v.drift.active,
+        driftRecovering: v.drift.recovering,
         driftTime: v.drift.duration,
         cameraMode: this.scene?.cameras.mode ?? "chase",
         smokeParticles: this.scene?.smoke.count ?? 0,

@@ -128,6 +128,16 @@ export class VehiclePhysics {
     const targetThrottle = this.brake > 0 ? 0 : drive;
     this.throttle += (targetThrottle - this.throttle) * (1 - Math.exp(-VEHICLE.throttleRate * dt));
     if (this.brake > 0) this.throttle = 0;
+    this.drift.updateGrip(
+      dt,
+      this.handbrake,
+      this.throttle,
+      this.steer,
+      this.speed,
+      this.brake,
+      this.groundedWheels,
+    );
+    const handbrake = this.drift.effectiveHandbrake;
     const countersteer =
       this.groundedWheels >= 3 &&
       this.speed > VEHICLE.drift.minSpeed &&
@@ -138,15 +148,23 @@ export class VehiclePhysics {
       (VEHICLE.maxSteer / (1 + (Math.abs(this.speed) / 15) ** 2)) *
         (1 + (countersteer ? VEHICLE.countersteerReserve * slide : 0)),
     );
-    const targetSteer = -Math.max(-1, Math.min(1, input.steer)) * steerLimit;
+    // Align the front tires with the actual contact velocity during a slide,
+    // leaving driver steering as an offset that still changes the travel path.
+    const targetSteer = Math.max(
+      -VEHICLE.maxSteer,
+      Math.min(
+        VEHICLE.maxSteer,
+        -Math.max(-1, Math.min(1, input.steer)) * steerLimit * (1 - this.drift.control * 0.7) +
+          this.drift.slipAngle * this.drift.control * VEHICLE.drift.countersteerAssist,
+      ),
+    );
     this.steer +=
       (targetSteer - this.steer) *
       (1 - Math.exp(-(countersteer ? VEHICLE.countersteerRate : VEHICLE.steeringRate) * dt));
     const speed = Math.abs(this.speed);
-    this.drift.updateGrip(dt, this.handbrake, this.throttle, this.steer, this.speed);
     // Handbrake cuts drive immediately; clutch-like recovery prevents a torque step on release.
     this.driveCoupling = Math.min(
-      1 - this.handbrake,
+      1 - handbrake,
       this.driveCoupling +
         (1 - this.driveCoupling) * (1 - Math.exp(-VEHICLE.driveRecoveryRate * dt)),
     );
@@ -183,7 +201,8 @@ export class VehiclePhysics {
         i,
         dt *
           ((this.brake * VEHICLE.maxBrakeForce) / 4 +
-            (rear ? (this.handbrake * VEHICLE.handbrakeForce) / 2 : 0)),
+            (rear ? (handbrake * VEHICLE.handbrakeForce) / 2 : 0) +
+            (this.drift.recovering ? this.handbrake * VEHICLE.maxBrakeForce * 0.12 : 0)),
       );
     }
     this.body.resetForces(false);
@@ -203,15 +222,32 @@ export class VehiclePhysics {
     if (contacts >= 3 && speed > VEHICLE.drift.minSpeed) {
       this.body.angvel(this.angularVelocity);
       const yawRate = this.angularVelocity.dot(this.up);
+      const control = this.speed > VEHICLE.drift.minSpeed ? this.drift.control : 0;
+      const targetSlip = this.drift.recovering
+        ? 0
+        : input.steer * VEHICLE.drift.targetSlip * (0.5 + this.throttle * 0.5) +
+          handbrake * input.steer * 0.25;
+      const requestedYaw = -input.steer * Math.min(0.65, 9 / Math.max(8, speed));
+      const targetYaw =
+        requestedYaw + (this.drift.slipAngle - targetSlip) * VEHICLE.drift.slipRecovery;
+      const correction = Math.max(
+        -VEHICLE.drift.maxAssistTorque,
+        Math.min(
+          VEHICLE.drift.maxAssistTorque,
+          (targetYaw - yawRate) * VEHICLE.inertia.y * VEHICLE.drift.yawResponse,
+        ),
+      );
       this.force
         .copy(this.up)
         .multiplyScalar(
-          -yawRate *
-            VEHICLE.inertia.y *
-            VEHICLE.groundYawDamping *
-            (0.35 +
-              (0.65 * (this.drift.rearGrip - VEHICLE.drift.rearGripMinimum)) /
-                (1 - VEHICLE.drift.rearGripMinimum)),
+          correction * control -
+            yawRate *
+              VEHICLE.inertia.y *
+              VEHICLE.groundYawDamping *
+              (1 - control) *
+              (0.35 +
+                (0.65 * (this.drift.rearGrip - VEHICLE.drift.rearGripMinimum)) /
+                  (1 - VEHICLE.drift.rearGripMinimum)),
         );
       this.body.addTorque(this.force, false);
     }
@@ -255,7 +291,7 @@ export class VehiclePhysics {
       if (this.controller.wheelIsInContact(i)) this.groundedWheels++;
       // Rear wheels slow to a lock under the handbrake; suspension remains independent.
       this.wheelAngles[i] +=
-        (this.speed / VEHICLE.wheelRadius) * dt * (i >= 2 ? 1 - this.handbrake : 1);
+        (this.speed / VEHICLE.wheelRadius) * dt * (i >= 2 ? 1 - this.drift.effectiveHandbrake : 1);
     }
     this.lateralAxis.set(1, 0, 0).applyQuaternion(this.rotation);
     this.drift.measure(dt, this.speed, this.velocity.dot(this.lateralAxis), this.groundedWheels);

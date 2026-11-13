@@ -6,21 +6,53 @@ export class DriftController {
   slipAngle = 0;
   active = false;
   duration = 0;
+  control = 0;
+  recovering = false;
+  effectiveHandbrake = 0;
+  private engaged = false;
+  private wasPressed = false;
+  private recoveryTime = 0;
+  private settledTime = 0;
 
-  updateGrip(dt: number, handbrake: number, throttle: number, steer: number, speed: number): void {
+  updateGrip(
+    dt: number,
+    handbrake: number,
+    throttle: number,
+    steer: number,
+    speed: number,
+    brake: number,
+    grounded: number,
+  ): void {
     const config = VEHICLE.drift;
-    // A sliding, driven rear axle retains some slip after release, then recovers
-    // as the driver countersteers or lifts. Never remove lateral traction entirely.
-    const slip = Math.max(0, Math.abs(this.slipAngle) - config.exitAngle);
-    const speedBlend = Math.max(0, Math.min(1, (speed - config.minSpeed) / 3));
-    const powerSlip = speedBlend * Math.min(0.22, slip * throttle * 0.5);
+    const pressed = handbrake > 0.2;
+    const available = speed > config.minSpeed && grounded >= 3;
+    if (pressed && !this.wasPressed && available) {
+      if (this.engaged || this.active) this.recoveryTime = 1.2;
+      else this.engaged = true;
+    }
+    this.wasPressed = pressed;
+    if ((brake > 0.1 || (this.recovering && pressed)) && available) this.recoveryTime = 1.2;
+    this.recoveryTime = Math.max(0, this.recoveryTime - dt);
+    this.recovering = this.recoveryTime > 0;
+    if (this.recovering || !available) this.engaged = false;
+    this.settledTime =
+      !pressed && Math.abs(this.slipAngle) < config.exitAngle ? this.settledTime + dt : 0;
+    if (this.settledTime > 0.7 || (!pressed && throttle < 0.1)) this.engaged = false;
+    this.effectiveHandbrake = this.recovering ? 0 : handbrake;
+    const targetControl = available && (this.engaged || this.active || this.recovering) ? 1 : 0;
+    this.control += (targetControl - this.control) * (1 - Math.exp(-8 * dt));
     const countersteer = steer * this.slipAngle > 0;
-    const target = Math.max(
-      config.rearGripMinimum,
-      1 - handbrake * (1 - config.rearGripMinimum) - powerSlip,
-    );
+    const powerSlip = this.engaged && !pressed ? 0.35 + throttle * 0.2 : 0;
+    const target = this.recovering
+      ? 1
+      : Math.max(
+          config.rearGripMinimum,
+          1 - this.effectiveHandbrake * (1 - config.rearGripMinimum) - powerSlip,
+        );
     const rate =
-      target < this.rearGrip ? config.engageRate : config.releaseRate * (countersteer ? 1.35 : 1);
+      target < this.rearGrip
+        ? config.engageRate
+        : config.releaseRate * (this.recovering ? 2.5 : countersteer ? 1.35 : 1);
     this.rearGrip += (target - this.rearGrip) * (1 - Math.exp(-rate * dt));
   }
 
@@ -41,5 +73,7 @@ export class DriftController {
     this.rearGrip = 1;
     this.slipAngle = this.duration = 0;
     this.active = false;
+    this.control = this.effectiveHandbrake = this.recoveryTime = this.settledTime = 0;
+    this.engaged = this.wasPressed = this.recovering = false;
   }
 }

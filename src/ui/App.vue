@@ -325,13 +325,15 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             :data-active="diagnostics.drifting"
           >
             <span data-testid="handbrake" :data-value="diagnostics.handbrake">{{
-              diagnostics.handbrake > 0.1
-                ? "手刹制动"
-                : diagnostics.drifting
-                  ? "漂移中"
-                  : diagnostics.rearGrip < 0.92
-                    ? "抓地恢复"
-                    : "稳定行驶"
+              diagnostics.driftRecovering
+                ? "收车辅助 · 恢复抓地"
+                : diagnostics.handbrake > 0.1
+                  ? "手刹制动"
+                  : diagnostics.drifting
+                    ? "漂移中"
+                    : diagnostics.rearGrip < 0.92
+                      ? "抓地恢复"
+                      : "稳定行驶"
             }}</span>
             <strong>{{ Math.abs(diagnostics.slipAngle).toFixed(0) }}<small>°</small></strong>
             <span>累计漂移 {{ diagnostics.driftTime.toFixed(1) }} s</span>
@@ -459,7 +461,13 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           @lostpointercapture="touch(control, $event, false)"
         >
           {{
-            { left: "←", right: "→", brake: "制动", handbrake: "手刹", throttle: "加速 ↑" }[control]
+            {
+              left: "←",
+              right: "→",
+              brake: "制动",
+              handbrake: diagnostics.drifting ? "手刹收车" : "手刹",
+              throttle: "加速 ↑",
+            }[control]
           }}
         </button>
       </div>
@@ -468,7 +476,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         <div><kbd>W</kbd><kbd>↑</kbd><span>加速</span></div>
         <div><kbd>S</kbd><kbd>↓</kbd><span>制动 / 停稳后倒车</span></div>
         <div><kbd>A</kbd><kbd>D</kbd><span>平滑转向</span></div>
-        <div><kbd>Space</kbd><span>手刹 / 漂移</span></div>
+        <div><kbd>Space</kbd><span>短按起漂 · 再按收车</span></div>
         <span class="gamepad-guide">手柄：RT / LT 踏板 · A 手刹 · X 视角</span
         ><span class="engine-status"
           ><i></i><span data-testid="backend">{{ diagnostics.backend }}</span

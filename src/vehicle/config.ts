@@ -37,6 +37,11 @@ export const VEHICLE = {
   countersteerReserve: 0.3,
   driveRecoveryRate: 6,
   drift: {
+    countersteerAssist: 1,
+    targetSlip: 0.85,
+    slipRecovery: 2.5,
+    yawResponse: 18,
+    maxAssistTorque: 25000,
     rearGripMinimum: 0.48,
     releaseRate: 2.6,
     engageRate: 14,
