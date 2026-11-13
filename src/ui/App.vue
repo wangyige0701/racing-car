@@ -4,6 +4,7 @@ import { initialDiagnostics } from "../core/types";
 import { CAMERA_LABELS } from "../camera/config";
 import type { GameApplication } from "../core/GameApplication";
 import type { TouchControl } from "../input/InputManager";
+import TouchSteering from "./TouchSteering.vue";
 
 const viewport = ref<HTMLDivElement>();
 const diagnostics = shallowRef(initialDiagnostics());
@@ -129,6 +130,14 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         aria-label="赛车自由练习"
       >
         <div ref="viewport" class="viewport" data-testid="viewport"></div>
+        <div class="mobile-actions">
+          <button :disabled="!ready" @click="application?.cycleCamera()" aria-label="横屏切换视角">
+            视角
+          </button>
+          <button :disabled="!ready" @click="application?.togglePause()" aria-label="横屏暂停菜单">
+            {{ paused ? "继续" : "暂停 / 设置" }}
+          </button>
+        </div>
         <div class="scene-vignette"></div>
         <div class="scene-topline">
           <div class="session-title">
@@ -277,6 +286,16 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             <span class="eyebrow">TAKE A BREATHER</span>
             <h2>暂停一下，再出发。</h2>
             <p>失去焦点时会自动暂停。恢复后请重新操作油门。</p>
+            <div class="mobile-settings">
+              <button @click="application?.resetVehicle()">重置车辆</button>
+              <button @click="application?.toggleAudio()">
+                {{ diagnostics.audioMuted ? "开启音效" : "静音" }}
+              </button>
+              <select v-model="quality" aria-label="横屏画质" @change="changeQuality">
+                <option value="high">高画质</option>
+                <option value="balanced">均衡画质</option>
+              </select>
+            </div>
             <button class="button primary" @click="application?.togglePause()">
               回到驾驶 <span>↗</span></button
             ><small>或按 ESC / 手柄 Start</small>
@@ -296,6 +315,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
       </section>
 
       <div class="touch-controls" aria-label="触控驾驶">
+        <TouchSteering :enabled="ready && !paused" @change="application?.touchSteering($event)" />
         <button
           v-for="control in ['left', 'right', 'brake', 'handbrake', 'throttle'] as const"
           :key="control"
@@ -309,7 +329,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             }[control]
           "
           :disabled="!ready || paused"
-          :class="{ accelerator: control === 'throttle' }"
+          :class="[control, { accelerator: control === 'throttle' }]"
           @pointerdown="touch(control, $event, true)"
           @pointerup="touch(control, $event, false)"
           @pointercancel="touch(control, $event, false)"
@@ -338,6 +358,12 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           <div>渲染帧数 <b data-testid="frames">{{ diagnostics.frames }}</b></div>
           <div>物理步数 <b data-testid="physics-steps">{{ diagnostics.physicsSteps }}</b></div>
           <div>车轮着地 <b data-testid="grounded">{{ diagnostics.groundedWheels }} / 4</b></div>
+          <div>
+            前轮转向
+            <b data-testid="steering" :data-value="diagnostics.steer">{{
+              diagnostics.steer.toFixed(2)
+            }}</b>
+          </div>
           <div>护栏接触 <b data-testid="collisions">{{ diagnostics.collisions }}</b></div>
           <div>轮胎烟雾 <b data-testid="smoke-count">{{ diagnostics.smokeParticles }}</b></div>
           <div>音频状态 <b data-testid="audio-state">{{ diagnostics.audioStatus }}</b></div>

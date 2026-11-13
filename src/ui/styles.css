@@ -1217,3 +1217,196 @@ footer i {
     transition: none;
   }
 }
+.mobile-actions,
+.mobile-settings,
+.touch-steering {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  body {
+    overflow: hidden;
+    min-width: 0;
+  }
+  .app-shell {
+    padding: 0;
+    max-width: none;
+  }
+  .topbar,
+  .track-heading,
+  .driving-guide,
+  .diagnostics,
+  footer {
+    display: none;
+  }
+  .driving-panel {
+    height: 100dvh;
+    min-height: 0;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+  .scene-vignette {
+    pointer-events: none;
+  }
+  .mobile-actions {
+    display: flex;
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    z-index: 4;
+    gap: 8px;
+  }
+  .mobile-actions button,
+  .mobile-settings button,
+  .mobile-settings select {
+    min-height: 44px;
+    border: 1px solid #ffffff40;
+    border-radius: 8px;
+    background: #10231cdd;
+    color: #e5efcf;
+    padding: 8px 14px;
+  }
+  .mobile-settings {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .scene-topline {
+    top: 14px;
+    left: max(16px, env(safe-area-inset-left));
+    right: auto;
+  }
+  .prototype-label,
+  .session-number,
+  .session-title > b,
+  .session-info,
+  .scene-bottomline,
+  .drive-hint,
+  .map-heading,
+  .map-caption {
+    display: none;
+  }
+  .track-map,
+  .onboard-view .track-map {
+    width: 64px;
+    left: 18px;
+    top: 47px;
+    bottom: auto;
+    padding: 3px;
+  }
+  .track-map svg,
+  .onboard-view .track-map svg {
+    height: 68px;
+    margin: 0;
+  }
+  .speedometer,
+  .onboard-view .speedometer {
+    width: 115px;
+    right: max(18px, env(safe-area-inset-right));
+    top: 64px;
+    bottom: auto;
+  }
+  .speed-value strong,
+  .onboard-view .speed-value strong {
+    font-size: 42px;
+    letter-spacing: -2px;
+  }
+  .gear strong {
+    font-size: 23px;
+  }
+  .vehicle-name,
+  .rpm-scale,
+  .rpm-caption,
+  .rpm-bar,
+  .pedals {
+    display: none;
+  }
+  .dynamics-hud {
+    top: 14px;
+    left: 36%;
+    right: auto;
+    font-size: 9px;
+    text-align: center;
+  }
+  .dynamics-hud strong {
+    font-size: 22px;
+  }
+  .dynamics-hud > span:last-child {
+    display: none;
+  }
+  .touch-controls {
+    display: grid;
+    grid-template-columns: 156px 1fr repeat(3, 64px);
+    gap: 10px;
+    position: fixed;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: max(16px, env(safe-area-inset-left));
+    right: max(16px, env(safe-area-inset-right));
+    z-index: 2;
+    padding: 0;
+    margin: 0;
+    pointer-events: none;
+  }
+  .touch-controls button {
+    min-height: 64px;
+    padding: 4px;
+    background: #13271ed9;
+    border-radius: 16px;
+    font-size: 12px;
+    pointer-events: auto;
+    touch-action: none;
+    user-select: none;
+  }
+  .touch-controls .left,
+  .touch-controls .right {
+    display: none;
+  }
+  .touch-controls .brake {
+    grid-column: 3;
+  }
+  .touch-steering {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 1px solid #d9f58266;
+    border-radius: 32px;
+    background: #13271ebf;
+    touch-action: none;
+    user-select: none;
+    pointer-events: auto;
+  }
+  .touch-steering span {
+    font-size: 10px;
+    color: #d6e6bc;
+  }
+  .touch-steering i {
+    display: block;
+    width: 28px;
+    height: 24px;
+    border-radius: 12px;
+    margin-top: 5px;
+    background: #d9f582;
+  }
+  .touch-steering[aria-disabled="true"] {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .pause-overlay {
+    z-index: 3;
+  }
+  .pause-card {
+    margin: 8px;
+    padding: 16px;
+    max-height: calc(100dvh - 20px);
+    overflow: auto;
+  }
+  .pause-card h2 {
+    margin: 8px 0;
+    font-size: 20px;
+  }
+  .pause-card .button {
+    margin-top: 12px;
+  }
+}

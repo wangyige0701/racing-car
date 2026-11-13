@@ -201,6 +201,10 @@ export class GameApplication {
     this.input?.setTouch(control, pressed);
   }
 
+  touchSteering(value: number): void {
+    this.input?.setTouchSteering(value);
+  }
+
   cycleCamera(): void {
     if (!this.scene || !["running", "paused"].includes(this.diagnostics.phase)) return;
     this.scene.cameras.cycle();

@@ -18,6 +18,7 @@ const drivingKeys = new Set([
 export class InputManager {
   private readonly keys = new Set<string>();
   private readonly touch = new Set<TouchControl>();
+  private touchSteering = 0;
   private readonly value = emptyInput();
   private readonly pad = emptyInput();
   private padNeedsNeutral = true;
@@ -36,6 +37,7 @@ export class InputManager {
     window.addEventListener("keydown", this.keyDown);
     window.addEventListener("keyup", this.keyUp);
     window.addEventListener("blur", this.lostFocus);
+    window.addEventListener("orientationchange", this.lostFocus);
   }
 
   private readonly keyDown = (event: KeyboardEvent): void => {
@@ -79,6 +81,12 @@ export class InputManager {
       this.touch.add(control);
       this.source = "触控";
     } else this.touch.delete(control);
+  }
+
+  setTouchSteering(value: number): void {
+    this.touchSteering =
+      this.enabled && Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0;
+    if (this.touchSteering) this.source = "触控";
   }
 
   /** Action buttons are sampled while paused too, allowing Start to resume. */
@@ -129,7 +137,8 @@ export class InputManager {
     );
     const left = this.keys.has("KeyA") || this.keys.has("ArrowLeft") || this.touch.has("left");
     const right = this.keys.has("KeyD") || this.keys.has("ArrowRight") || this.touch.has("right");
-    this.value.steer = left || right ? Number(right) - Number(left) : this.pad.steer;
+    this.value.steer =
+      left || right ? Number(right) - Number(left) : this.touchSteering || this.pad.steer;
     this.value.handbrake = Math.max(
       this.pad.handbrake,
       Number(this.keys.has("Space") || this.touch.has("handbrake")),
@@ -140,6 +149,7 @@ export class InputManager {
   clear(): void {
     this.keys.clear();
     this.touch.clear();
+    this.touchSteering = 0;
     this.padNeedsNeutral = true;
     this.pad.throttle = this.pad.brake = this.pad.steer = this.pad.handbrake = 0;
     this.value.throttle = this.value.brake = this.value.steer = this.value.handbrake = 0;
@@ -150,5 +160,6 @@ export class InputManager {
     window.removeEventListener("keydown", this.keyDown);
     window.removeEventListener("keyup", this.keyUp);
     window.removeEventListener("blur", this.lostFocus);
+    window.removeEventListener("orientationchange", this.lostFocus);
   }
 }
