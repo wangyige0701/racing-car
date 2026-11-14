@@ -110,10 +110,12 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="./" aria-label="APEX 赛车首页"
-        ><span class="brand-mark">A</span>APEX<span class="brand-divider"></span
-        ><span class="brand-sub">RACING LAB</span></a
-      >
+      <a class="brand" href="./" aria-label="APEX 赛车首页">
+        <span class="brand-mark">A</span>
+        APEX
+        <span class="brand-divider"></span>
+        <span class="brand-sub">RACING LAB</span>
+      </a>
       <span class="project-label">CAR CONCEPT <b>/</b> 左舵驾驶体验</span>
       <span class="stage-pill"><i></i> APEX / LHD</span>
     </header>
@@ -148,8 +150,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           >
             {{ diagnostics.audioMuted ? "已静音" : "音效开启" }}
           </button>
-          <label class="volume-control"
-            ><span>音量 {{ Math.round(diagnostics.audioVolume * 100) }}%</span>
+          <label class="volume-control">
+            <span>音量 {{ Math.round(diagnostics.audioVolume * 100) }}%</span>
             <input
               type="range"
               min="0"
@@ -159,10 +161,11 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
               :disabled="!ready"
               aria-label="音量"
               @input="changeAudioVolume"
-          /></label>
-          <label class="quality-control"
-            ><span>画质</span
-            ><select
+            />
+          </label>
+          <label class="quality-control">
+            <span>画质</span>
+            <select
               v-model="quality"
               aria-label="渲染精度"
               :disabled="!ready"
@@ -171,8 +174,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
               <option value="high">高 · 2×</option>
               <option value="balanced">均衡 · 1×</option>
               <option value="economy">流畅 · 1×</option>
-            </select></label
-          >
+            </select>
+          </label>
           <button class="button secondary" :disabled="!ready" @click="application?.resetVehicle()">
             重置车辆 <kbd>R</kbd>
           </button>
@@ -222,9 +225,10 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         </div>
         <div class="scene-vignette"></div>
         <div v-if="fullscreen && ready" class="fullscreen-telemetry" aria-label="全屏引擎信息">
-          <span>{{ diagnostics.backend }}</span><b>{{ diagnostics.fps || "—" }} FPS</b
-          ><span>PHYS {{ diagnostics.physicsMs.toFixed(2) }} MS</span
-          ><span>接触 {{ diagnostics.collisions }}</span>
+          <span>{{ diagnostics.backend }}</span>
+          <b>{{ diagnostics.fps || "—" }} FPS</b>
+          <span>PHYS {{ diagnostics.physicsMs.toFixed(2) }} MS</span>
+          <span>接触 {{ diagnostics.collisions }}</span>
         </div>
         <div v-if="ready && !paused && diagnostics.cameraMode === 'cockpit'" class="look-controls">
           <button
@@ -248,8 +252,10 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         </div>
         <div class="scene-topline">
           <div class="session-title">
-            <span class="live-dot" :class="{ inactive: diagnostics.phase !== 'running' }"></span
-            ><span>{{ status }}</span><b>/</b><span class="session-number">SESSION 01</span>
+            <span class="live-dot" :class="{ inactive: diagnostics.phase !== 'running' }"></span>
+            <span>{{ status }}</span>
+            <b>/</b>
+            <span class="session-number">SESSION 01</span>
           </div>
           <span class="prototype-label">CAR CONCEPT · 左舵</span>
         </div>
@@ -265,23 +271,23 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
                     ? lapTime(diagnostics.lapTime)
                     : "通过起点开始计圈"
             }}</strong>
-            <span
-              >完成 {{ diagnostics.laps }} 圈 · 下一点
-              {{ diagnostics.nextCheckpoint ? `CP ${diagnostics.nextCheckpoint}` : "起点" }}</span
-            >
-            <small
-              >上圈 {{ lapTime(diagnostics.lastLap) }} · 最佳
-              {{ lapTime(diagnostics.bestLap) }}</small
-            >
+            <span>
+              完成 {{ diagnostics.laps }} 圈 · 下一点
+              {{ diagnostics.nextCheckpoint ? `CP ${diagnostics.nextCheckpoint}` : "起点" }}
+            </span>
+            <small>
+              上圈 {{ lapTime(diagnostics.lastLap) }} · 最佳
+              {{ lapTime(diagnostics.bestLap) }}
+            </small>
           </div>
           <div class="session-info">
-            <span class="hud-label">PRACTICE TIME</span
-            ><strong data-testid="elapsed">{{ time }}</strong>
+            <span class="hud-label">PRACTICE TIME</span>
+            <strong data-testid="elapsed">{{ time }}</strong>
             <div>
-              <span>练习里程</span
-              ><b data-testid="distance"
-                >{{ (diagnostics.distance / 1000).toFixed(2) }} <small>km</small></b
-              >
+              <span>练习里程</span>
+              <b data-testid="distance">
+                {{ (diagnostics.distance / 1000).toFixed(2) }} <small>km</small>
+              </b>
             </div>
           </div>
           <div class="track-map">
@@ -316,27 +322,28 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
                   stroke="#26342b"
                   stroke-width="2"
                 />
-              </g></svg
-            ><span class="map-caption"
-              >{{ diagnostics.trackName }}
-              <b>{{ (diagnostics.trackLength / 1000).toFixed(2) }} KM</b></span
-            >
+              </g>
+            </svg>
+            <span class="map-caption">
+              {{ diagnostics.trackName }}
+              <b>{{ (diagnostics.trackLength / 1000).toFixed(2) }} KM</b>
+            </span>
           </div>
 
           <div class="speedometer">
             <div class="vehicle-name">APEX <span>/ CAR CONCEPT</span></div>
             <div class="speed-row">
               <div class="gear">
-                <span>GEAR</span
-                ><strong data-testid="gear">{{
+                <span>GEAR</span>
+                <strong data-testid="gear">{{
                   diagnostics.gear === -1 ? "R" : diagnostics.gear
                 }}</strong>
               </div>
               <div class="speed-value">
                 <strong data-testid="speed" :data-speed="diagnostics.speedKmh.toFixed(2)">{{
                   Math.round(Math.abs(diagnostics.speedKmh)).toString().padStart(3, "0")
-                }}</strong
-                ><span>KM/H</span>
+                }}</strong>
+                <span>KM/H</span>
               </div>
             </div>
             <div class="rpm-scale"><span>1</span><span>3</span><span>5</span><span>7</span></div>
@@ -344,8 +351,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
               <i :style="{ transform: `scaleX(${diagnostics.rpm / 7500})` }"></i>
             </div>
             <div class="rpm-caption">
-              <span>{{ Math.round(diagnostics.rpm) }} <small>RPM</small></span
-              ><span>AUTO <b>●</b></span>
+              <span>{{ Math.round(diagnostics.rpm) }} <small>RPM</small></span>
+              <span>AUTO <b>●</b></span>
             </div>
             <div class="pedals">
               <span>油门</span>
@@ -395,7 +402,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         </template>
 
         <div v-if="diagnostics.phase === 'starting'" class="scene-message" role="status">
-          <span class="loader"></span><span class="eyebrow">GETTING ON TRACK</span>
+          <span class="loader"></span>
+          <span class="eyebrow">GETTING ON TRACK</span>
           <h2>赛道正在就绪</h2>
           <p>{{ diagnostics.message }}</p>
         </div>
@@ -409,7 +417,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           <p>{{ diagnostics.message }}</p>
           <small
             >请使用支持 WebGPU 的现代浏览器，开启硬件加速，并通过 localhost 或 HTTPS 访问。</small
-          ><button class="button primary" @click="retry">重新检测 <span>↗</span></button>
+          >
+          <button class="button primary" @click="retry">重新检测 <span>↗</span></button>
         </div>
         <div v-else-if="paused" class="pause-overlay">
           <div class="pause-card">
@@ -418,8 +427,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             <p>失去焦点时会自动暂停。恢复后请重新操作油门。</p>
             <details class="camera-settings">
               <summary>驾驶舱设置</summary>
-              <label
-                >视野 {{ cameraSettings.fov }}°
+              <label>
+                视野 {{ cameraSettings.fov }}°
                 <input
                   type="range"
                   min="55"
@@ -428,9 +437,10 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
                   v-model.number="cameraSettings.fov"
                   @input="changeCamera"
                   aria-label="驾驶舱视野"
-              /></label>
-              <label
-                >座椅高度
+                />
+              </label>
+              <label>
+                座椅高度
                 <input
                   type="range"
                   min="-0.04"
@@ -438,9 +448,10 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
                   step="0.01"
                   v-model.number="cameraSettings.height"
                   @input="changeCamera"
-              /></label>
-              <label
-                >座椅后移
+                />
+              </label>
+              <label>
+                座椅后移
                 <input
                   type="range"
                   min="-0.08"
@@ -448,11 +459,12 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
                   step="0.01"
                   v-model.number="cameraSettings.back"
                   @input="changeCamera"
-              /></label>
-              <label
-                ><input type="checkbox" v-model="cameraSettings.motion" @change="changeCamera" />
-                轻微惯性、看弯与撞击镜头</label
-              >
+                />
+              </label>
+              <label>
+                <input type="checkbox" v-model="cameraSettings.motion" @change="changeCamera" />
+                轻微惯性、看弯与撞击镜头
+              </label>
             </details>
             <div class="mobile-settings">
               <select
@@ -469,8 +481,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
               <button @click="application?.toggleAudio()">
                 {{ diagnostics.audioMuted ? "开启音效" : "静音" }}
               </button>
-              <label class="volume-control"
-                >音量 {{ Math.round(diagnostics.audioVolume * 100) }}%
+              <label class="volume-control">
+                音量 {{ Math.round(diagnostics.audioVolume * 100) }}%
                 <input
                   type="range"
                   min="0"
@@ -479,7 +491,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
                   :value="diagnostics.audioVolume"
                   aria-label="音量"
                   @input="changeAudioVolume"
-              /></label>
+                />
+              </label>
               <select v-model="quality" aria-label="横屏画质" @change="changeQuality">
                 <option value="high">高画质</option>
                 <option value="balanced">均衡画质</option>
@@ -487,20 +500,21 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
               </select>
             </div>
             <button class="button primary" @click="application?.togglePause()">
-              回到驾驶 <span>↗</span></button
-            ><small>或按 ESC / 手柄 Start</small>
+              回到驾驶 <span>↗</span>
+            </button>
+            <small>或按 ESC / 手柄 Start</small>
           </div>
         </div>
         <div class="scene-bottomline">
-          <span
-            ><span data-testid="camera-mode">{{ CAMERA_LABELS[diagnostics.cameraMode] }}</span> <b
-              >·</b
-            >
-            {{ diagnostics.inputSource }}</span
-          ><span
-            >{{ diagnostics.width }} × {{ diagnostics.height }} <b>/</b> DPR
-            {{ diagnostics.pixelRatio.toFixed(1) }}</span
-          >
+          <span>
+            <span data-testid="camera-mode">{{ CAMERA_LABELS[diagnostics.cameraMode] }}</span>
+            <b>·</b>
+            {{ diagnostics.inputSource }}
+          </span>
+          <span>
+            {{ diagnostics.width }} × {{ diagnostics.height }} <b>/</b> DPR
+            {{ diagnostics.pixelRatio.toFixed(1) }}
+          </span>
         </div>
       </section>
 
@@ -542,11 +556,12 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         <div><kbd>S</kbd><kbd>↓</kbd><span>制动 / 停稳后倒车</span></div>
         <div><kbd>A</kbd><kbd>D</kbd><span>平滑转向</span></div>
         <div><kbd>Space</kbd><span>短按起漂 · 再按收车</span></div>
-        <span class="gamepad-guide">手柄：RT / LT 踏板 · A 手刹 · X 视角</span
-        ><span class="engine-status"
-          ><i></i><span data-testid="backend">{{ diagnostics.backend }}</span
-          ><b>{{ diagnostics.fps || "—" }} FPS</b></span
-        >
+        <span class="gamepad-guide">手柄：RT / LT 踏板 · A 手刹 · X 视角</span>
+        <span class="engine-status">
+          <i></i>
+          <span data-testid="backend">{{ diagnostics.backend }}</span>
+          <b>{{ diagnostics.fps || "—" }} FPS</b>
+        </span>
       </section>
       <details class="diagnostics">
         <summary>引擎诊断 <span>RAPIER / FIXED 60 HZ</span></summary>
@@ -566,9 +581,9 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           <div>侧滑角 <b data-testid="slip-angle">{{ diagnostics.slipAngle.toFixed(1) }}°</b></div>
           <div>
             后轮抓地
-            <b data-testid="rear-grip" :data-value="diagnostics.rearGrip"
-              >{{ (diagnostics.rearGrip * 100).toFixed(0) }}%</b
-            >
+            <b data-testid="rear-grip" :data-value="diagnostics.rearGrip">
+              {{ (diagnostics.rearGrip * 100).toFixed(0) }}%
+            </b>
           </div>
           <div>物理 CPU / 步 <b>{{ diagnostics.physicsMs.toFixed(2) }} ms</b></div>
           <div>渲染 CPU 提交 / 帧 <b>{{ diagnostics.renderSubmitMs.toFixed(2) }} ms</b></div>
@@ -577,17 +592,17 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
       </details>
     </main>
     <footer>
-      <span>APEX <b>/</b> BUILT FOR THE NEXT CORNER.</span
-      ><span
-        >Car Concept · Eric Chadwick / DGG ·
+      <span>APEX <b>/</b> BUILT FOR THE NEXT CORNER.</span>
+      <span>
+        Car Concept · Eric Chadwick / DGG ·
         <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"
           >CC BY 4.0</a
         >
         ·
         <a href="./assets/vehicles/car-concept/CREDITS.md" target="_blank" rel="noopener"
           >模型署名与改动</a
-        ></span
-      >
+        >
+      </span>
     </footer>
   </div>
 </template>

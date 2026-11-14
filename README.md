@@ -25,6 +25,10 @@ pnpm assets:environment # 从已下载的固定来源重新生成场景资产
 
 依赖使用精确版本和 `pnpm-lock.yaml` 固定。`pnpm-workspace.yaml` 管理工作区内的 `.pnpm-cache/`、`.pnpm-store/`，二者不纳入 Git。没有服务端、数据库、环境变量式游戏配置或外部模型 / 字体 CDN。`dist/` 可作为静态站点通过 HTTPS 托管，并应启用 gzip / Brotli。
 
+## GitHub Pages 部署
+
+`.github/workflows/deploy-pages.yml` 在推送到 `main` 或手动触发时，以 `pnpm build` 构建并发布 `dist/`。在仓库 Settings → Pages 中将 Source 设为 **GitHub Actions**；工作流会按 `/<仓库名>/` 设置 Vite 基路径，因此 JavaScript、GLB、纹理和图标可在项目页地址下加载。若部署到 `<owner>.github.io` 根站点或自定义域名，将工作流的 `VITE_BASE_PATH` 改为 `/` 后再发布。
+
 ## 驾驶操作
 
 | 操作               | 键盘             | 标准映射手柄 | 触控            |
