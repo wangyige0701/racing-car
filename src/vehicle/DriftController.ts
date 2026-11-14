@@ -9,6 +9,7 @@ export class DriftController {
   control = 0;
   recovering = false;
   effectiveHandbrake = 0;
+  pivoting = false;
   private engaged = false;
   private wasPressed = false;
   private recoveryTime = 0;
@@ -23,19 +24,22 @@ export class DriftController {
     brake: number,
     grounded: number,
     burnout: boolean,
+    pivot: boolean,
   ): void {
     const config = VEHICLE.drift;
     if (burnout) {
       this.engaged = this.recovering = false;
       this.recoveryTime = 0;
       this.effectiveHandbrake = 0;
+      this.pivoting = false;
       this.control += (1 - this.control) * (1 - Math.exp(-config.engageRate * dt));
       this.rearGrip +=
         (VEHICLE.burnout.rearGrip - this.rearGrip) * (1 - Math.exp(-config.engageRate * dt));
       return;
     }
     const pressed = handbrake > 0.2;
-    const available = speed > config.minSpeed && grounded >= 3;
+    this.pivoting = pivot && pressed && throttle > 0.1;
+    const available = (speed > config.minSpeed || this.pivoting) && grounded >= 3;
     if (pressed && !this.wasPressed && available) {
       if (this.engaged || this.active) this.recoveryTime = 1.2;
       else this.engaged = true;
@@ -48,17 +52,27 @@ export class DriftController {
     this.settledTime =
       !pressed && Math.abs(this.slipAngle) < config.exitAngle ? this.settledTime + dt : 0;
     if (this.settledTime > 0.7 || (!pressed && throttle < 0.1)) this.engaged = false;
-    this.effectiveHandbrake = this.recovering ? 0 : handbrake;
-    const targetControl = available && (this.engaged || this.active || this.recovering) ? 1 : 0;
+    const poweredHold =
+      pressed &&
+      throttle > 0.1 &&
+      (this.engaged || this.active || this.pivoting) &&
+      !this.recovering;
+    this.effectiveHandbrake = this.recovering
+      ? 0
+      : handbrake * (poweredHold ? config.heldHandbrakeBrakeFactor : 1);
+    const targetControl =
+      available && (this.engaged || this.active || this.recovering || this.pivoting) ? 1 : 0;
     this.control += (targetControl - this.control) * (1 - Math.exp(-8 * dt));
     const countersteer = steer * this.slipAngle > 0;
     const powerSlip = this.engaged && !pressed ? 0.35 + throttle * 0.2 : 0;
     const target = this.recovering
       ? 1
-      : Math.max(
-          config.rearGripMinimum,
-          1 - this.effectiveHandbrake * (1 - config.rearGripMinimum) - powerSlip,
-        );
+      : poweredHold
+        ? Math.max(config.rearGripMinimum, config.heldHandbrakeGrip - throttle * 0.08)
+        : Math.max(
+            config.rearGripMinimum,
+            1 - this.effectiveHandbrake * (1 - config.rearGripMinimum) - powerSlip,
+          );
     const rate =
       target < this.rearGrip
         ? config.engageRate
@@ -73,9 +87,10 @@ export class DriftController {
         : 0;
     const threshold = this.active ? VEHICLE.drift.exitAngle : VEHICLE.drift.enterAngle;
     this.active =
-      longitudinal > VEHICLE.drift.minSpeed &&
-      groundedWheels >= 3 &&
-      Math.abs(this.slipAngle) > threshold;
+      this.pivoting ||
+      (longitudinal > VEHICLE.drift.minSpeed &&
+        groundedWheels >= 3 &&
+        Math.abs(this.slipAngle) > threshold);
     if (this.active) this.duration += dt;
   }
 
@@ -84,6 +99,6 @@ export class DriftController {
     this.slipAngle = this.duration = 0;
     this.active = false;
     this.control = this.effectiveHandbrake = this.recoveryTime = this.settledTime = 0;
-    this.engaged = this.wasPressed = this.recovering = false;
+    this.engaged = this.wasPressed = this.recovering = this.pivoting = false;
   }
 }

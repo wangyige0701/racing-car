@@ -52,6 +52,11 @@ export const VEHICLE = {
   drift: {
     countersteerAssist: 0.85,
     driverSteerRetention: 0.3,
+    heldHandbrakeGrip: 0.5,
+    heldHandbrakeBrakeFactor: 0.18,
+    pivotMaxSpeed: 5,
+    pivotYawRate: 1.6,
+    pivotMaxTorque: 12000,
     targetSlip: 0.85,
     slipRecovery: 2.5,
     yawResponse: 18,

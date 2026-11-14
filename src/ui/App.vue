@@ -558,7 +558,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         <div><kbd>S</kbd><kbd>↓</kbd><span>制动 / 停稳后倒车</span></div>
         <div><kbd>W</kbd><kbd>S</kbd><span>静止烧胎 · 松开制动弹射</span></div>
         <div><kbd>A</kbd><kbd>D</kbd><span>平滑转向</span></div>
-        <div><kbd>Space</kbd><span>短按起漂 · 再按收车</span></div>
+        <div><kbd>W</kbd><kbd>Space</kbd><span>配合方向持续漂移 · 低速原地转向</span></div>
         <span class="gamepad-guide">手柄：RT / LT 踏板 · A 手刹 · X 视角</span>
         <span class="engine-status">
           <i></i>

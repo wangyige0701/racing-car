@@ -104,6 +104,35 @@ test("throttle plus service brake spins the driven wheels and releases into a ch
   }
 });
 
+test("held throttle, handbrake and steering power a low-speed pivot and a sustained corner drift", async () => {
+  const { world, vehicle, step } = await pad();
+  try {
+    const start = vehicle.rotation.clone();
+    step(120, { throttle: 1, handbrake: 1, steer: 0.8 });
+    expect(vehicle.drift.active).toBe(true);
+    expect(vehicle.drift.pivoting).toBe(true);
+    expect(vehicle.drift.rearGrip).toBeLessThan(0.5);
+    expect(start.angleTo(vehicle.rotation)).toBeGreaterThan(0.6);
+    expect(Math.abs(vehicle.speed)).toBeLessThan(5);
+
+    vehicle.reset(true);
+    step(240, { throttle: 1 });
+    const before = vehicle.position.clone();
+    let activeFrames = 0;
+    for (let i = 0; i < 240; i++) {
+      step(1, { throttle: 1, handbrake: 1, steer: 0.7 });
+      if (vehicle.drift.active) activeFrames++;
+    }
+    expect(activeFrames).toBeGreaterThan(200);
+    expect(vehicle.speed).toBeGreaterThan(7);
+    expect(vehicle.position.distanceTo(before)).toBeGreaterThan(18);
+    expect(Math.abs(vehicle.drift.slipAngle)).toBeGreaterThan(0.12);
+    expect(vehicle.groundedWheels).toBe(4);
+  } finally {
+    world.free();
+  }
+});
+
 test("service brake sheds speed quickly before reverse can engage", async () => {
   const { world, vehicle, step } = await pad();
   try {

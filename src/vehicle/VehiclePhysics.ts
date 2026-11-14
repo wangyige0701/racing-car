@@ -121,6 +121,11 @@ export class VehiclePhysics {
       this.direction === 1 &&
       movement < VEHICLE.burnout.engageSpeed &&
       this.groundedWheels >= 3;
+    const handbrakePivot =
+      this.handbrake > 0.2 &&
+      accelerator > 0.05 &&
+      movement < VEHICLE.drift.pivotMaxSpeed &&
+      this.groundedWheels >= 3;
     if (both) {
       this.brake = Math.max(accelerator, pedal);
       if (this.burnout) drive = accelerator;
@@ -151,6 +156,7 @@ export class VehiclePhysics {
       this.brake,
       this.groundedWheels,
       this.burnout,
+      handbrakePivot,
     );
     const handbrake = this.drift.effectiveHandbrake;
     const countersteer =
@@ -263,7 +269,7 @@ export class VehiclePhysics {
     this.up.set(0, 1, 0).applyQuaternion(this.rotation);
     let contacts = 0;
     for (let i = 0; i < 4; i++) if (this.controller.wheelIsInContact(i)) contacts++;
-    const stationarySpin = this.burnout && Math.abs(input.steer) > 0.12;
+    const stationarySpin = (this.burnout || handbrakePivot) && Math.abs(input.steer) > 0.12;
     if (contacts >= 3 && (speed > VEHICLE.drift.minSpeed || stationarySpin)) {
       this.body.angvel(this.angularVelocity);
       const yawRate = this.angularVelocity.dot(this.up);
@@ -274,10 +280,12 @@ export class VehiclePhysics {
           handbrake * input.steer * 0.25;
       const requestedYaw = -input.steer * Math.min(0.85, 12 / Math.max(7, speed));
       const targetYaw = stationarySpin
-        ? -input.steer * VEHICLE.burnout.yawRate
+        ? -input.steer * (this.burnout ? VEHICLE.burnout.yawRate : VEHICLE.drift.pivotYawRate)
         : requestedYaw + (this.drift.slipAngle - targetSlip) * VEHICLE.drift.slipRecovery;
       const maxTorque = stationarySpin
-        ? VEHICLE.burnout.maxYawTorque
+        ? this.burnout
+          ? VEHICLE.burnout.maxYawTorque
+          : VEHICLE.drift.pivotMaxTorque
         : VEHICLE.drift.maxAssistTorque;
       const correction = Math.max(
         -maxTorque,

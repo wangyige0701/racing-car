@@ -209,6 +209,29 @@ test("low-speed throttle and brake trigger burnout before a charged launch", asy
   expect(errors).toEqual([]);
 });
 
+test("held throttle, handbrake and steering stay in a controllable drift", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto("/");
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  await page.keyboard.down("w");
+  await page.keyboard.down("Space");
+  await page.keyboard.down("d");
+  await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "true");
+  await page.waitForTimeout(1500);
+  await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "true");
+  await expect
+    .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
+    .toBeGreaterThan(12);
+  await page.keyboard.up("d");
+  await page.keyboard.up("Space");
+  await page.keyboard.up("w");
+  expect(errors).toEqual([]);
+});
+
 test("fullscreen keeps diagnostic telemetry over the running WebGPU scene", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
