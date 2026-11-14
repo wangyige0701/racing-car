@@ -28,6 +28,7 @@ export class GameApplication {
   private laps?: LapTimer;
   private trackId: TrackId = "practice";
   private muted = false;
+  private audioVolume = 0.35;
   private input?: InputManager;
   private audio?: VehicleAudio;
   private readonly idleInput = emptyInput();
@@ -125,6 +126,7 @@ export class GameApplication {
         () => this.cycleCamera(),
       );
       this.audio = new VehicleAudio();
+      this.audio.setVolume(this.audioVolume);
       if (this.muted) this.audio.toggleMuted();
       this.audio.setActive(true);
       this.diagnostics.message = "WebGPU 后端与设备已验证";
@@ -271,10 +273,16 @@ export class GameApplication {
     this.emit();
   }
 
+  setAudioVolume(volume: number): void {
+    this.audioVolume = Math.max(0, Math.min(1, volume));
+    this.audio?.setVolume(this.audioVolume);
+    this.emit();
+  }
+
   resetVehicle(): void {
     if (!this.physics || !this.scene || !this.vehicle) return;
     this.input?.clear();
-    this.vehicle.reset();
+    this.vehicle.reset(true);
     this.laps?.invalidate();
     this.physics.resetFeedback();
     this.audio?.reset();
@@ -320,7 +328,9 @@ export class GameApplication {
   private emit(): void {
     if (this.vehicle) {
       const v = this.vehicle,
-        q = v.rotation;
+        renderedVehicle = this.scene?.vehicle.root,
+        position = renderedVehicle?.position ?? v.position,
+        q = renderedVehicle?.quaternion ?? v.rotation;
       Object.assign(this.diagnostics, {
         speedKmh: v.speed * 3.6,
         rpm: v.rpm,
@@ -331,8 +341,8 @@ export class GameApplication {
         groundedWheels: v.groundedWheels,
         distance: v.distance,
         elapsed: this.elapsed,
-        mapX: v.position.x,
-        mapY: -v.position.z,
+        mapX: position.x,
+        mapY: -position.z,
         heading:
           (Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180) /
           Math.PI,
@@ -350,6 +360,7 @@ export class GameApplication {
         smokeParticles: this.scene?.smoke.count ?? 0,
         audioStatus: this.audio?.status ?? "locked",
         audioMuted: this.audio?.muted ?? false,
+        audioVolume: this.audio?.volume ?? this.audioVolume,
         lapTime: this.laps?.current ?? 0,
         lastLap: this.laps?.last ?? 0,
         bestLap: this.laps?.best ?? 0,

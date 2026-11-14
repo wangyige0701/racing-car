@@ -246,6 +246,13 @@ test("audio unlocks on a real gesture, follows RPM, mutes and closes on dispose"
       page.evaluate(() => Reflect.get(window, "__audioProbe").oscillators[0].frequency.value),
     )
     .toBeGreaterThan(90);
+  await expect
+    .poll(() => page.evaluate(() => Reflect.get(window, "__audioProbe").gains[0].gain.value))
+    .toBeGreaterThan(0.1);
+  await page.getByLabel("音量").first().fill("0.6");
+  await expect
+    .poll(() => page.evaluate(() => Reflect.get(window, "__audioProbe").gains[0].gain.value))
+    .toBeGreaterThan(0.2);
   await page.keyboard.up("w");
   await page.getByRole("button", { name: "切换静音" }).click();
   await expect
@@ -254,7 +261,7 @@ test("audio unlocks on a real gesture, follows RPM, mutes and closes on dispose"
   await page.getByRole("button", { name: "切换静音" }).click();
   await expect
     .poll(() => page.evaluate(() => Reflect.get(window, "__audioProbe").gains[0].gain.value))
-    .toBeGreaterThan(0.4);
+    .toBeGreaterThan(0.2);
   await page.keyboard.press("Escape");
   await expect
     .poll(() => page.evaluate(() => Reflect.get(window, "__audioProbe").gains[0].gain.value))

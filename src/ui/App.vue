@@ -79,6 +79,9 @@ function changeQuality(event: Event) {
   application?.setQuality(quality.value);
   (event.target as HTMLElement).blur();
 }
+function changeAudioVolume(event: Event) {
+  application?.setAudioVolume(Number((event.target as HTMLInputElement).value));
+}
 function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
   event.preventDefault();
   const button = event.currentTarget as HTMLElement;
@@ -128,6 +131,18 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           >
             {{ diagnostics.audioMuted ? "已静音" : "音效开启" }}
           </button>
+          <label class="volume-control"
+            ><span>音量 {{ Math.round(diagnostics.audioVolume * 100) }}%</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              :value="diagnostics.audioVolume"
+              :disabled="!ready"
+              aria-label="音量"
+              @input="changeAudioVolume"
+          /></label>
           <label class="quality-control"
             ><span>画质</span
             ><select
@@ -253,6 +268,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
               <g
                 :transform="`translate(${diagnostics.mapX},${diagnostics.mapY}) scale(${Math.max(1, diagnostics.trackLength / 950)}) rotate(${diagnostics.heading})`"
                 :data-heading="diagnostics.heading"
+                :data-position="`${diagnostics.mapX.toFixed(2)},${diagnostics.mapY.toFixed(2)}`"
                 data-testid="map-marker"
               >
                 <circle r="16" fill="#d9f582" fill-opacity=".2" />
@@ -415,6 +431,17 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
               <button @click="application?.toggleAudio()">
                 {{ diagnostics.audioMuted ? "开启音效" : "静音" }}
               </button>
+              <label class="volume-control"
+                >音量 {{ Math.round(diagnostics.audioVolume * 100) }}%
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  :value="diagnostics.audioVolume"
+                  aria-label="音量"
+                  @input="changeAudioVolume"
+              /></label>
               <select v-model="quality" aria-label="横屏画质" @change="changeQuality">
                 <option value="high">高画质</option>
                 <option value="balanced">均衡画质</option>

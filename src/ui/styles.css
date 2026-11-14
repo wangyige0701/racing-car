@@ -188,6 +188,18 @@ h1 span {
   border-radius: 3px;
   color: #dce3ce;
 }
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: #a3b29c;
+  white-space: nowrap;
+}
+.volume-control input {
+  width: 72px;
+  accent-color: #d9f582;
+}
 .button {
   display: flex;
   align-items: center;
@@ -865,6 +877,9 @@ footer i {
   .quality-control {
     margin-right: 4px;
   }
+  .volume-control input {
+    width: 54px;
+  }
   .speedometer {
     width: 210px;
   }
@@ -996,6 +1011,9 @@ footer i {
     gap: 6px;
   }
   .quality-control > span {
+    display: none;
+  }
+  .volume-control > span {
     display: none;
   }
   .quality-control select {
@@ -1258,13 +1276,20 @@ footer i {
   }
   .mobile-actions button,
   .mobile-settings button,
-  .mobile-settings select {
+  .mobile-settings select,
+  .mobile-settings .volume-control {
     min-height: 44px;
     border: 1px solid #ffffff40;
     border-radius: 8px;
     background: #10231cdd;
     color: #e5efcf;
     padding: 8px 14px;
+  }
+  .mobile-settings .volume-control {
+    gap: 8px;
+  }
+  .mobile-settings .volume-control input {
+    width: 80px;
   }
   .mobile-settings {
     display: flex;

@@ -56,6 +56,7 @@ export interface Diagnostics {
   smokeParticles: number;
   audioStatus: "locked" | "running" | "suspended" | "unavailable";
   audioMuted: boolean;
+  audioVolume: number;
 }
 
 export function initialDiagnostics(): Diagnostics {
@@ -113,5 +114,6 @@ export function initialDiagnostics(): Diagnostics {
     smokeParticles: 0,
     audioStatus: "locked",
     audioMuted: false,
+    audioVolume: 0.35,
   };
 }

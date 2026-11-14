@@ -17,8 +17,13 @@ export class VehicleAudio {
   private disposed = false;
   private lastCollision = 0;
   private lastImpact = -1;
+  private _volume = 0.35;
   muted = false;
   status: "locked" | "running" | "suspended" | "unavailable" = "locked";
+
+  get volume(): number {
+    return this._volume;
+  }
 
   constructor() {
     window.addEventListener("keydown", this.gesture);
@@ -104,11 +109,12 @@ export class VehicleAudio {
 
   setActive(active: boolean): void {
     this.active = active;
-    this.master?.gain.setTargetAtTime(
-      active && !this.muted ? 0.42 : 0,
-      this.context!.currentTime,
-      0.025,
-    );
+    this.master?.gain.setTargetAtTime(this.masterVolume(), this.context!.currentTime, 0.025);
+  }
+
+  setVolume(volume: number): void {
+    this._volume = Math.max(0, Math.min(1, volume));
+    this.setActive(this.active);
   }
 
   toggleMuted(): void {
@@ -129,7 +135,7 @@ export class VehicleAudio {
     this.lastCollision = collisions;
     if (!ctx || ctx.state !== "running") return;
     const now = ctx.currentTime;
-    this.master!.gain.setTargetAtTime(this.active && !this.muted ? 0.42 : 0, now, 0.025);
+    this.master!.gain.setTargetAtTime(this.masterVolume(), now, 0.025);
     this.oscillators.forEach((oscillator, i) =>
       oscillator.frequency.setTargetAtTime((vehicle.rpm / 60) * 4 * (i + 1), now, 0.08),
     );
@@ -208,5 +214,9 @@ export class VehicleAudio {
     this.noise = undefined;
     this.scrapeGain = undefined;
     this.filter = undefined;
+  }
+
+  private masterVolume(): number {
+    return this.active && !this.muted ? 0.42 * this._volume : 0;
   }
 }

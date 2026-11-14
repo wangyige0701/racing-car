@@ -106,6 +106,7 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
   await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
   await expect(page.getByTestId("backend")).toHaveText("WebGPU");
   await expect(page.locator("canvas")).toHaveCount(1);
+  const startMapPosition = await page.getByTestId("map-marker").getAttribute("data-position");
   await page.locator("summary").click();
   await expect
     .poll(async () => Number((await page.getByTestId("frames").innerText()).replaceAll(",", "")))
@@ -118,6 +119,7 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
     .toBeLessThan(-5);
   await page.keyboard.up("s");
   await page.getByRole("button", { name: "重置车辆" }).click();
+  await expect(page.getByTestId("map-marker")).toHaveAttribute("data-position", startMapPosition!);
   const contexts = await page.evaluate(
     () => Reflect.get(window, "__requestedContexts") as string[],
   );
