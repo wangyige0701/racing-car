@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { Vector3, Mesh, MeshBasicMaterial, Raycaster } from "three/webgpu";
 import { terrainGeometry } from "../src/rendering/Environment";
-import { Track } from "../src/track/Track";
+import { projectTrackMap, trackMapHeading, Track } from "../src/track/Track";
 import { TRACKS } from "../src/track/catalog";
 import { LapTimer } from "../src/track/LapTimer";
 import { PhysicsWorld } from "../src/physics/PhysicsWorld";
@@ -14,6 +14,15 @@ function cross(timer: LapTimer, track: Track, gate: number, reverse = false, gro
   const b = new Vector3(s.x + s.tx, s.y + 0.6 + s.ty, s.z + s.tz);
   timer.update(reverse ? b : a, reverse ? a : b, 1 / 60, grounded);
 }
+
+test("map projection keeps the marker's SVG heading aligned with vehicle travel", () => {
+  expect(projectTrackMap(12, -34)).toEqual({ x: -12, y: 34 });
+  // The marker path points toward local -Y; SVG positive rotation is clockwise.
+  expect(trackMapHeading(0, 1)).toBe(0);
+  expect(trackMapHeading(1, 0)).toBe(270);
+  expect(trackMapHeading(0, -1)).toBe(180);
+  expect(trackMapHeading(-1, 0)).toBe(90);
+});
 
 test("lap timing requires ordered forward grounded gates and rejects reset or off-road laps", () => {
   const track = new Track();

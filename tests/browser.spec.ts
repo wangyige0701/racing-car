@@ -132,8 +132,11 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
     .toBeGreaterThan(30);
   await page.keyboard.down("d");
   await expect
-    .poll(async () => Number(await page.getByTestId("map-marker").getAttribute("data-heading")))
-    .toBeLessThan(startHeading - 10);
+    .poll(async () => {
+      const heading = Number(await page.getByTestId("map-marker").getAttribute("data-heading"));
+      return ((heading - startHeading + 540) % 360) - 180;
+    })
+    .toBeGreaterThan(10);
   await page.keyboard.up("d");
   await page.keyboard.up("w");
   await page.screenshot({ path: testInfo.outputPath("desktop.png"), fullPage: true });

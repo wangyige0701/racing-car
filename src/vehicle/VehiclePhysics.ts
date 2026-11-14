@@ -56,15 +56,17 @@ export class VehiclePhysics {
           w: 1,
         })
         .setLinearDamping(0.03)
-        .setAngularDamping(0.8)
+        // Barrier impacts must lose roll/pitch energy instead of turning a
+        // shallow glancing contact into a long airborne tumble.
+        .setAngularDamping(1.8)
         .setCcdEnabled(true),
     );
     world.createCollider(
       RAPIER.ColliderDesc.roundCuboid(0.79, 0.11, 1.92, 0.12)
         .setTranslation(0, 0.12, 0)
         .setDensity(0)
-        .setFriction(0.25)
-        .setRestitution(0.05)
+        .setFriction(0.1)
+        .setRestitution(0)
         .setActiveEvents(
           RAPIER.ActiveEvents.COLLISION_EVENTS | RAPIER.ActiveEvents.CONTACT_FORCE_EVENTS,
         )

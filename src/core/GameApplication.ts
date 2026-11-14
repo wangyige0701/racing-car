@@ -9,7 +9,7 @@ import { PhysicsWorld } from "../physics/PhysicsWorld";
 import { VehiclePhysics } from "../vehicle/VehiclePhysics";
 import { VehicleVisual } from "../vehicle/VehicleVisual";
 import { VehicleAudio } from "../audio/VehicleAudio";
-import { Track } from "../track/Track";
+import { projectTrackMap, trackMapHeading, Track } from "../track/Track";
 import { TRACKS, type TrackId } from "../track/catalog";
 import { LapTimer } from "../track/LapTimer";
 import { InputManager } from "../input/InputManager";
@@ -94,7 +94,12 @@ export class GameApplication {
       this.vehicle = new VehiclePhysics(physics.world, track);
       this.diagnostics.physicsReady = true;
       this.diagnostics.trackLength = track.length;
-      this.diagnostics.mapPoints = track.samples.map((s) => `${s.x},${-s.z}`).join(" ");
+      this.diagnostics.mapPoints = track.samples
+        .map((sample) => {
+          const point = projectTrackMap(sample.x, sample.z);
+          return `${point.x},${point.y}`;
+        })
+        .join(" ");
       this.elapsed = 0;
       this.diagnostics.message = "正在加载 GLB 赛车与左舵驾驶舱";
       this.emit();
@@ -353,6 +358,9 @@ export class GameApplication {
         renderedVehicle = this.scene?.vehicle.root,
         position = renderedVehicle?.position ?? v.position,
         q = renderedVehicle?.quaternion ?? v.rotation;
+      const mapPosition = projectTrackMap(position.x, position.z);
+      const forwardX = 2 * (q.x * q.z + q.w * q.y);
+      const forwardZ = 1 - 2 * (q.x * q.x + q.y * q.y);
       Object.assign(this.diagnostics, {
         speedKmh: v.speed * 3.6,
         rpm: v.rpm,
@@ -363,13 +371,9 @@ export class GameApplication {
         groundedWheels: v.groundedWheels,
         distance: v.distance,
         elapsed: this.elapsed,
-        mapX: position.x,
-        mapY: -position.z,
-        heading:
-          ((Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180) /
-            Math.PI +
-            180) %
-          360,
+        mapX: mapPosition.x,
+        mapY: mapPosition.y,
+        heading: trackMapHeading(forwardX, forwardZ),
         collisions: this.physics?.collisionCount ?? 0,
         impactStrength: this.physics?.impactStrength ?? 0,
         collisionRecent: (this.physics?.impactAge ?? 10) < 2,

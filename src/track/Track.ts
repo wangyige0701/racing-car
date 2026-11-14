@@ -11,6 +11,19 @@ export interface TrackSample {
   tz: number;
 }
 
+/** Projects the driving plane into a north-up SVG map without mirroring left and right. */
+export function projectTrackMap(x: number, z: number): { x: number; y: number } {
+  return { x: -x, y: -z };
+}
+
+/**
+ * SVG's marker points toward its local -Y axis. SVG rotation is clockwise, so
+ * its heading is the inverse of the vehicle's +X-left / +Z-forward yaw.
+ */
+export function trackMapHeading(forwardX: number, forwardZ: number): number {
+  return ((Math.atan2(-forwardX, forwardZ) * 180) / Math.PI + 360) % 360;
+}
+
 /** One centerline supplies road geometry, barriers, reset poses and the HUD map. */
 export class Track {
   readonly samples: TrackSample[];
@@ -64,11 +77,12 @@ export class Track {
         this.corners.push(candidate.index);
       if (this.corners.length === 6) break;
     }
-    const minX = Math.min(...this.samples.map((s) => s.x)) - 30,
-      minZ = Math.min(...this.samples.map((s) => -s.z)) - 30;
-    const width = Math.max(...this.samples.map((s) => s.x)) - minX + 30,
-      height = Math.max(...this.samples.map((s) => -s.z)) - minZ + 30;
-    this.mapViewBox = `${minX} ${minZ} ${width} ${height}`;
+    const mapSamples = this.samples.map((s) => projectTrackMap(s.x, s.z));
+    const minX = Math.min(...mapSamples.map((point) => point.x)) - 30,
+      minY = Math.min(...mapSamples.map((point) => point.y)) - 30;
+    const width = Math.max(...mapSamples.map((point) => point.x)) - minX + 30,
+      height = Math.max(...mapSamples.map((point) => point.y)) - minY + 30;
+    this.mapViewBox = `${minX} ${minY} ${width} ${height}`;
     this.vertices = new Float32Array(this.samples.length * 6);
     this.indices = new Uint32Array(this.samples.length * 6);
     this.samples.forEach((s, i) => {

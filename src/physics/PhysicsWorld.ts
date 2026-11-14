@@ -38,10 +38,12 @@ export class PhysicsWorld {
     );
     for (const segment of track.barrierSegments()) {
       const collider = this.world.createCollider(
-        RAPIER.ColliderDesc.roundCuboid(0.3, 0.5, segment.length / 2, 0.1)
-          .setTranslation(segment.x, segment.y + 0.5, segment.z)
+        // A reduced-height physical envelope limits the side impulse's lever
+        // arm while still covering the chassis through its full travel.
+        RAPIER.ColliderDesc.roundCuboid(0.3, 0.45, segment.length / 2, 0.1)
+          .setTranslation(segment.x, segment.y + 0.45, segment.z)
           .setRotation(segment.rotation)
-          .setFriction(0.05)
+          .setFriction(0.02)
           .setRestitution(0),
       );
       this.barriers.add(collider.handle);

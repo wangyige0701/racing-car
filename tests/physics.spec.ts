@@ -257,3 +257,28 @@ test("an oblique barrier scrape preserves forward progress without flipping", as
     physics.dispose();
   }
 });
+
+test("a moderate barrier impact dissipates roll energy without launching the chassis", async () => {
+  const { physics, vehicle, track, step } = await setup();
+  try {
+    const s = track.samples[10];
+    vehicle.body.setTranslation(
+      { x: s.x + s.tz * 7.25, y: vehicle.position.y, z: s.z - s.tx * 7.25 },
+      true,
+    );
+    vehicle.body.setLinvel({ x: s.tx * 14 + s.tz * 5, y: 0, z: s.tz * 14 - s.tx * 5 }, true);
+    vehicle.afterStep(0);
+    let peakHeight = vehicle.position.y;
+    for (let i = 0; i < 180; i++) {
+      step(1);
+      peakHeight = Math.max(peakHeight, vehicle.position.y);
+    }
+    const upY = 1 - 2 * (vehicle.rotation.x ** 2 + vehicle.rotation.z ** 2);
+    expect(physics.collisionCount).toBeGreaterThan(0);
+    expect(peakHeight).toBeLessThan(1.25);
+    expect(upY).toBeGreaterThan(0.88);
+    expect(vehicle.groundedWheels).toBeGreaterThanOrEqual(3);
+  } finally {
+    physics.dispose();
+  }
+});
