@@ -43,6 +43,7 @@ export class GameApplication {
   private sampledFrames = 0;
   private quality: Quality;
   private pixelRatioCap: number;
+  private steeringSensitivity: number;
   private cameraSettings: CameraSettings;
   private cameraMode: CameraMode;
   private disposed = false;
@@ -57,6 +58,7 @@ export class GameApplication {
     this.audioVolume = settings.audioVolume;
     this.quality = settings.quality;
     this.pixelRatioCap = QUALITY[this.quality].dpr;
+    this.steeringSensitivity = settings.steeringSensitivity;
     this.cameraSettings = settings.cameraSettings;
     this.cameraMode = settings.cameraMode;
   }
@@ -92,6 +94,7 @@ export class GameApplication {
       }
       this.physics = physics;
       this.vehicle = new VehiclePhysics(physics.world, track);
+      this.vehicle.setSteeringSensitivity(this.steeringSensitivity);
       this.diagnostics.physicsReady = true;
       this.diagnostics.trackLength = track.length;
       this.diagnostics.mapPoints = track.samples
@@ -276,6 +279,12 @@ export class GameApplication {
     this.saveSettings();
     this.emit();
   }
+  setSteeringSensitivity(value: number): void {
+    this.steeringSensitivity = Math.max(0.6, Math.min(1.4, value));
+    this.vehicle?.setSteeringSensitivity(this.steeringSensitivity);
+    this.saveSettings();
+    this.emit();
+  }
   look(value: number): void {
     this.input?.setLook(value);
   }
@@ -368,6 +377,7 @@ export class GameApplication {
         throttle: v.throttle,
         brake: v.brake,
         steer: v.steer,
+        steeringSensitivity: this.steeringSensitivity,
         groundedWheels: v.groundedWheels,
         distance: v.distance,
         elapsed: this.elapsed,
@@ -436,6 +446,7 @@ export class GameApplication {
       audioMuted: this.muted,
       audioVolume: this.audioVolume,
       quality: this.quality,
+      steeringSensitivity: this.steeringSensitivity,
       cameraMode: this.cameraMode,
       cameraSettings: this.cameraSettings,
     });

@@ -47,7 +47,9 @@ export const VEHICLE = {
     rearGrip: 0.32,
     chargeRate: 0.55,
     releaseRate: 1.1,
-    launchForce: 0.85,
+    launchForce: 1.05,
+    launchAssistForce: 2400,
+    launchAssistSpeed: 6,
     maxLaunchSpeed: 12,
     yawRate: 1.4,
     maxYawTorque: 10000,
@@ -83,6 +85,7 @@ export const VEHICLE = {
   maxSteer: 0.62,
   steeringSpeedScale: 18,
   steeringRate: 4.5,
+  steeringSensitivity: { min: 0.6, max: 1.4, default: 1 },
   throttleRate: 7,
   directionDelay: 0.25,
 } as const;

@@ -12,6 +12,7 @@ test("player settings persist locally and invalid stored values fall back safely
       audioMuted: true,
       audioVolume: 0.6,
       quality: "economy",
+      steeringSensitivity: 1.25,
       cameraMode: "bumper",
       cameraSettings: { fov: 72, height: 0.04, back: -0.03, motion: false },
     });
@@ -26,12 +27,14 @@ test("player settings persist locally and invalid stored values fall back safely
     audioMuted: true,
     audioVolume: 0.6,
     quality: "economy",
+    steeringSensitivity: 1.25,
     cameraMode: "bumper",
     cameraSettings: { fov: 72, height: 0.04, back: -0.03, motion: false },
   });
   expect(result.invalid).toMatchObject({
     audioVolume: 1,
     quality: "high",
+    steeringSensitivity: 1,
     cameraMode: "chase",
     cameraSettings: { fov: 55, height: 0, back: 0, motion: true },
   });

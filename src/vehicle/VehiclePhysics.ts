@@ -29,6 +29,7 @@ export class VehiclePhysics {
   burnout = false;
   launchCharge = 0;
   launchBoost = 0;
+  private steeringSensitivity: number = VEHICLE.steeringSensitivity.default;
   readonly drift = new DriftController();
   readonly wheelAngles = [0, 0, 0, 0];
   readonly previousWheelAngles = [0, 0, 0, 0];
@@ -111,6 +112,7 @@ export class VehiclePhysics {
     for (let i = 0; i < 4; i++) this.previousWheelLengths[i] = this.wheelLengths[i];
     const accelerator = Math.max(0, Math.min(1, input.throttle));
     const pedal = Math.max(0, Math.min(1, input.brake));
+    const steerInput = Math.max(-1, Math.min(1, input.steer));
     this.handbrake = Math.max(0, Math.min(1, input.handbrake));
     this.body.linvel(this.velocity);
     const movement = this.velocity.length();
@@ -166,7 +168,7 @@ export class VehiclePhysics {
     const countersteer =
       this.groundedWheels >= 3 &&
       this.speed > VEHICLE.drift.minSpeed &&
-      -input.steer * this.drift.slipAngle > 0;
+      -steerInput * this.drift.slipAngle > 0;
     const slide = Math.min(1, Math.abs(this.drift.slipAngle) / 0.4);
     const steerLimit = Math.min(
       VEHICLE.maxSteer,
@@ -187,7 +189,7 @@ export class VehiclePhysics {
     // 这是常见的街机漂移模型：转向选择弧线，速度对齐提供反打，
     // 而不会取代玩家输入。
     const driverSteer =
-      -Math.max(-1, Math.min(1, input.steer)) *
+      -steerInput *
       driftSteerLimit *
       // 辅助权重指数衰减不会精确归零，不能按布尔值判断，否则回正后仍永久削弱转向。
       (1 -
@@ -208,13 +210,13 @@ export class VehiclePhysics {
     // 速度对齐项可以缓和侧滑，但不得反转持续的转向指令；方向仍由驾驶员决定。
     const minimumDriverSteer = driverSteer * VEHICLE.drift.driverSteerMinimum;
     const targetSteer = handbrakePivot
-      ? -Math.max(-1, Math.min(1, input.steer)) * VEHICLE.drift.maxSteer
+      ? -steerInput * VEHICLE.drift.maxSteer
       : Math.max(
           -VEHICLE.maxSteer,
           Math.min(
             VEHICLE.maxSteer,
             heldPoweredDrift &&
-              Math.abs(input.steer) > 0.08 &&
+              Math.abs(steerInput) > 0.08 &&
               (driverSteer * steeredTowardDriver < 0 ||
                 Math.abs(steeredTowardDriver) < Math.abs(minimumDriverSteer))
               ? minimumDriverSteer
@@ -223,7 +225,12 @@ export class VehiclePhysics {
         );
     this.steer +=
       (targetSteer - this.steer) *
-      (1 - Math.exp(-(countersteer ? VEHICLE.countersteerRate : VEHICLE.steeringRate) * dt));
+      (1 -
+        Math.exp(
+          -(countersteer ? VEHICLE.countersteerRate : VEHICLE.steeringRate) *
+            this.steeringSensitivity *
+            dt,
+        ));
     const speed = Math.abs(this.speed);
     // 车辆开始侧滑后，持续手刹只减弱而不切断驱动力，以便保持长距离动力漂移。
     const clutchCut = handbrake * (this.drift.active ? 0.4 : 1);
@@ -316,6 +323,12 @@ export class VehiclePhysics {
         (VEHICLE.rollingResistance * (1 - this.drift.control * 0.75) + engineBrake) *
         Math.min(1, Math.abs(longitudinal));
       this.force.addScaledVector(this.forward, -Math.sign(longitudinal) * resistance);
+      // 烧胎后的附加起步力绕过短暂的后轮低抓地恢复区，仍只通过刚体力推进。
+      const launchAssist =
+        this.launchBoost *
+        VEHICLE.burnout.launchAssistForce *
+        Math.max(0, 1 - speed / VEHICLE.burnout.launchAssistSpeed);
+      if (launchAssist > 0) this.force.addScaledVector(this.forward, launchAssist);
     }
     this.body.addForce(this.force, false);
     if (this.throttle > 0.01 || this.brake > 0 || this.handbrake > 0) this.body.wakeUp();
@@ -329,8 +342,8 @@ export class VehiclePhysics {
     this.up.set(0, 1, 0).applyQuaternion(this.rotation);
     let contacts = 0;
     for (let i = 0; i < 4; i++) if (this.controller.wheelIsInContact(i)) contacts++;
-    const stationarySpin = (this.burnout || handbrakePivot) && Math.abs(input.steer) > 0.12;
-    if (handbrakePivot && Math.abs(input.steer) > 0.12 && contacts >= 3) {
+    const stationarySpin = (this.burnout || handbrakePivot) && Math.abs(steerInput) > 0.12;
+    if (handbrakePivot && Math.abs(steerInput) > 0.12 && contacts >= 3) {
       // 前轴施加有限且较强的轮胎力，使其保持在小半径附近；后轴保留驱动和低抓地，
       // 因而扫出更大的弧线，且不传送车体或覆写 Rapier 速度。
       this.pivotPoint
@@ -351,17 +364,17 @@ export class VehiclePhysics {
       const control = stationarySpin ? 1 : this.drift.control;
       const targetSlip = this.drift.recovering
         ? 0
-        : input.steer * VEHICLE.drift.targetSlip * (0.5 + this.throttle * 0.5) +
-          handbrake * input.steer * 0.25;
-      const requestedYaw = -input.steer * Math.min(0.85, 12 / Math.max(7, speed));
+        : steerInput * VEHICLE.drift.targetSlip * (0.5 + this.throttle * 0.5) +
+          handbrake * steerInput * 0.25;
+      const requestedYaw = -steerInput * Math.min(0.85, 12 / Math.max(7, speed));
       const desiredYaw = stationarySpin
-        ? -input.steer * (this.burnout ? VEHICLE.burnout.yawRate : VEHICLE.drift.pivotYawRate)
+        ? -steerInput * (this.burnout ? VEHICLE.burnout.yawRate : VEHICLE.drift.pivotYawRate)
         : requestedYaw + (this.drift.slipAngle - targetSlip) * VEHICLE.drift.slipRecovery;
       // 侧滑恢复可以减缓正在出现的自旋，但不能令持续方向指令把车身转向另一侧。
       const targetYaw =
         !stationarySpin &&
         heldPoweredDrift &&
-        Math.abs(input.steer) > 0.08 &&
+        Math.abs(steerInput) > 0.08 &&
         desiredYaw * requestedYaw < 0
           ? requestedYaw * VEHICLE.drift.driverYawRetention
           : desiredYaw;
@@ -422,6 +435,13 @@ export class VehiclePhysics {
       this.force.negate();
       this.body.addForceAtPoint(this.force, this.contact, false);
     }
+  }
+
+  setSteeringSensitivity(value: number): void {
+    this.steeringSensitivity = Math.max(
+      VEHICLE.steeringSensitivity.min,
+      Math.min(VEHICLE.steeringSensitivity.max, value),
+    );
   }
 
   afterStep(dt: number): void {

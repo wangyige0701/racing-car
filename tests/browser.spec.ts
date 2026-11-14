@@ -229,6 +229,9 @@ test("操作说明按需弹出，支持全屏与横屏并恢复原有暂停状�
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  await page.keyboard.press("c");
+  await expect(page.getByRole("button", { name: "向左观察" })).toHaveText("Q 看左");
+  await expect(page.getByRole("button", { name: "向右观察" })).toHaveText("看右 E");
   const help = page.getByRole("dialog", { name: "操作说明" });
   await expect(help).not.toBeVisible();
   await page
@@ -251,6 +254,12 @@ test("操作说明按需弹出，支持全屏与横屏并恢复原有暂停状�
   await expect(help).not.toBeVisible();
   await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
+  await page.locator(".camera-settings summary").click();
+  await page.getByLabel("左右转向灵敏度", { exact: true }).fill("1.35");
+  await page.getByLabel("左右转向灵敏度", { exact: true }).blur();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("apex-racing-settings-v1")))
+    .toContain('"steeringSensitivity":1.35');
   await page
     .getByRole("button", { name: "操作说明", exact: true })
     .filter({ visible: true })

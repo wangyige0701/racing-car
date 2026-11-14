@@ -7,6 +7,7 @@ export interface GameSettings {
   audioMuted: boolean;
   audioVolume: number;
   quality: Quality;
+  steeringSensitivity: number;
   cameraMode: CameraMode;
   cameraSettings: CameraSettings;
 }
@@ -22,6 +23,7 @@ export function loadGameSettings(): GameSettings {
     audioMuted: false,
     audioVolume: 0.35,
     quality: defaultQuality(),
+    steeringSensitivity: 1,
     cameraMode: "chase",
     cameraSettings: { ...DEFAULT_CAMERA_SETTINGS },
   };
@@ -35,6 +37,12 @@ export function loadGameSettings(): GameSettings {
         typeof stored.quality === "string" && Object.hasOwn(QUALITY, stored.quality)
           ? (stored.quality as Quality)
           : defaults.quality,
+      steeringSensitivity: clamp(
+        stored.steeringSensitivity,
+        0.6,
+        1.4,
+        defaults.steeringSensitivity,
+      ),
       cameraMode:
         stored.cameraMode === "cockpit" ||
         stored.cameraMode === "hood" ||

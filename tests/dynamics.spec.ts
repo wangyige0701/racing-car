@@ -105,6 +105,39 @@ test("throttle plus service brake spins the driven wheels and releases into a ch
   }
 });
 
+test("charged launch adds a bounded initial acceleration over a normal start", async () => {
+  const charged = await pad();
+  const normal = await pad();
+  try {
+    charged.step(110, { throttle: 1, brake: 1 });
+    expect(charged.vehicle.launchCharge).toBeGreaterThan(0.9);
+    charged.step(12, { throttle: 1 });
+    normal.step(12, { throttle: 1 });
+    expect(charged.vehicle.launchBoost).toBeGreaterThan(0);
+    expect(charged.vehicle.speed).toBeGreaterThan(normal.vehicle.speed * 1.2);
+    expect(charged.vehicle.speed).toBeLessThan(VEHICLE.burnout.launchAssistSpeed);
+  } finally {
+    charged.world.free();
+    normal.world.free();
+  }
+});
+
+test("steering sensitivity changes response rate without exceeding the steering limit", async () => {
+  const low = await pad();
+  const high = await pad();
+  try {
+    low.vehicle.setSteeringSensitivity(VEHICLE.steeringSensitivity.min);
+    high.vehicle.setSteeringSensitivity(VEHICLE.steeringSensitivity.max);
+    low.step(8, { throttle: 0.3, steer: 0.6 });
+    high.step(8, { throttle: 0.3, steer: 0.6 });
+    expect(Math.abs(high.vehicle.steer)).toBeGreaterThan(Math.abs(low.vehicle.steer) * 1.6);
+    expect(Math.abs(high.vehicle.steer)).toBeLessThanOrEqual(steeringLimit(high.vehicle.speed));
+  } finally {
+    low.world.free();
+    high.world.free();
+  }
+});
+
 test("held throttle, handbrake and steering power a low-speed pivot and a sustained corner drift", async () => {
   const { world, vehicle, step } = await pad();
   try {

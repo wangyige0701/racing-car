@@ -29,8 +29,12 @@ function closeHelp() {
 const diagnostics = shallowRef(initialDiagnostics());
 const quality = ref<Quality>(defaultQuality());
 const cameraSettings = ref({ ...DEFAULT_CAMERA_SETTINGS });
+const steeringSensitivity = ref(1);
 function changeCamera() {
   application?.setCameraSettings(cameraSettings.value);
+}
+function changeSteeringSensitivity() {
+  application?.setSteeringSensitivity(steeringSensitivity.value);
 }
 function chooseTrack(event: Event) {
   void application?.selectTrack((event.target as HTMLSelectElement).value as TrackId);
@@ -111,6 +115,7 @@ onMounted(async () => {
       diagnostics.value = snapshot;
       quality.value = snapshot.quality;
       cameraSettings.value = { ...snapshot.cameraSettings };
+      steeringSensitivity.value = snapshot.steeringSensitivity;
     });
     await application.start();
   } catch (error) {
@@ -293,7 +298,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             @pointercancel="look(0, $event)"
             @lostpointercapture="look(0, $event)"
           >
-            ← 看左
+            <kbd>Q</kbd> 看左
           </button>
           <button
             aria-label="向右观察"
@@ -302,7 +307,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             @pointercancel="look(0, $event)"
             @lostpointercapture="look(0, $event)"
           >
-            看右 →
+            看右 <kbd>E</kbd>
           </button>
         </div>
         <div class="scene-topline">
@@ -491,7 +496,19 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             <h2>暂停一下，再出发。</h2>
             <p>失去焦点时会自动暂停。恢复后请重新操作油门。</p>
             <details class="camera-settings">
-              <summary>驾驶舱设置</summary>
+              <summary>驾驶与驾驶舱设置</summary>
+              <label>
+                左右转向灵敏度 {{ Math.round(steeringSensitivity * 100) }}%
+                <input
+                  type="range"
+                  min="0.6"
+                  max="1.4"
+                  step="0.05"
+                  v-model.number="steeringSensitivity"
+                  @input="changeSteeringSensitivity"
+                  aria-label="左右转向灵敏度"
+                />
+              </label>
               <label>
                 视野 {{ cameraSettings.fov }}°
                 <input

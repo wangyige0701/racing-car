@@ -24,6 +24,7 @@ export interface Diagnostics {
   throttle: number;
   brake: number;
   steer: number;
+  steeringSensitivity: number;
   groundedWheels: number;
   distance: number;
   elapsed: number;
@@ -86,6 +87,7 @@ export function initialDiagnostics(): Diagnostics {
     throttle: 0,
     brake: 0,
     steer: 0,
+    steeringSensitivity: 1,
     groundedWheels: 0,
     distance: 0,
     elapsed: 0,
