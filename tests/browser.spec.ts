@@ -188,6 +188,42 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
   expect(errors).toEqual([]);
 });
 
+test("左 Shift 在实际车辆中保持转向，释放后回正且重置清除锁定", async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto("/");
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  const steering = async () =>
+    Number(await page.getByTestId("steering").getAttribute("data-value"));
+  await page.keyboard.down("a");
+  await expect.poll(steering).toBeGreaterThan(0.3);
+  await page.keyboard.down("ShiftLeft");
+  await page.keyboard.up("a");
+  // 超过正常回正时间，实际前轮仍向左转。
+  await page.waitForTimeout(700);
+  expect(await steering()).toBeGreaterThan(0.3);
+  await page.keyboard.up("ShiftLeft");
+  await expect.poll(async () => Math.abs(await steering())).toBeLessThan(0.01);
+  await page.keyboard.down("ArrowRight");
+  await page.keyboard.down("ShiftLeft");
+  await page.keyboard.up("ArrowRight");
+  await expect.poll(steering).toBeLessThan(-0.3);
+  await page.keyboard.press("r");
+  await expect.poll(async () => Math.abs(await steering())).toBeLessThan(0.01);
+  await page.keyboard.up("ShiftLeft");
+  await page.screenshot({
+    path: testInfo.outputPath("steering-guide.jpg"),
+    type: "jpeg",
+    quality: 65,
+    scale: "css",
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});
+
 test("low-speed throttle and brake trigger burnout before a charged launch", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));

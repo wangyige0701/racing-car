@@ -17,8 +17,6 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
       () => blurs++,
       () => cameras++,
       (amount: number) => (volume += amount),
-      () => cameras++,
-      (amount: number) => (volume += amount),
     );
     const pad = {
       connected: true,
@@ -111,6 +109,90 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
   expect(result.repressed).toEqual({ throttle: 0.6, brake: 0, steer: 0, handbrake: 0 });
   expect(result.callbacks).toEqual({ pauses: 2, resets: 1, blurs: 1, cameras: 2, volume: 0 });
   expect(result.pausesAfterDispose).toBe(2);
+});
+
+test("左 Shift 锁定键盘转向，释放、暂停、重置及失焦正确解除", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "gpu", { value: undefined }));
+  await page.goto("/");
+  const result = await page.evaluate(async (modulePath) => {
+    const { InputManager } = await import(modulePath);
+    const input = new InputManager(
+      () => {
+        input.clear();
+        input.enabled = !input.enabled;
+      },
+      () => input.clear(),
+      () => input.clear(),
+    );
+    const key = (type: string, code: string, repeat = false) =>
+      window.dispatchEvent(new KeyboardEvent(type, { code, repeat, cancelable: true }));
+    const snapshots: Record<string, number> = {};
+    try {
+      // 不先 read，确保两次物理采样之间的按键组合也能锁定。
+      for (const [code, opposite] of [
+        ["KeyA", "KeyD"],
+        ["ArrowRight", "ArrowLeft"],
+      ]) {
+        key("keydown", code);
+        key("keydown", "ShiftLeft");
+        key("keyup", code);
+        snapshots[code] = input.read().steer;
+        key("keydown", opposite);
+        key("keydown", "ShiftLeft", true);
+        snapshots[`${code}Opposite`] = input.read().steer;
+        key("keyup", "ShiftLeft");
+        snapshots[`${code}Unlocked`] = input.read().steer;
+        key("keyup", opposite);
+        snapshots[`${code}Released`] = input.read().steer;
+      }
+      key("keydown", "ShiftLeft");
+      snapshots.armed = input.read().steer;
+      key("keydown", "ArrowLeft");
+      key("keyup", "ArrowLeft");
+      snapshots.shiftFirst = input.read().steer;
+      key("keyup", "ShiftLeft");
+      snapshots.shiftReleased = input.read().steer;
+      key("keydown", "KeyD");
+      key("keydown", "ShiftRight");
+      key("keyup", "KeyD");
+      snapshots.rightShift = input.read().steer;
+      key("keyup", "ShiftRight");
+      for (const action of ["pause", "reset", "blur"]) {
+        key("keydown", "KeyD");
+        key("keydown", "ShiftLeft");
+        key("keyup", "KeyD");
+        snapshots[`${action}Before`] = input.read().steer;
+        if (action === "blur") window.dispatchEvent(new Event("blur"));
+        else key("keydown", action === "pause" ? "Escape" : "KeyR");
+        snapshots[action] = input.read().steer;
+        if (action === "pause") key("keydown", "Escape");
+        key("keydown", "ShiftLeft", true);
+        snapshots[`${action}Repeat`] = input.read().steer;
+        key("keyup", "ShiftLeft");
+      }
+      return snapshots;
+    } finally {
+      input.dispose();
+    }
+  }, "/src/input/InputManager.ts");
+  for (const [code, direction] of [
+    ["KeyA", -1],
+    ["ArrowRight", 1],
+  ] as const) {
+    expect(result[code]).toBe(direction);
+    expect(result[`${code}Opposite`]).toBe(direction);
+    expect(result[`${code}Unlocked`]).toBe(-direction);
+    expect(result[`${code}Released`]).toBe(0);
+  }
+  expect(result.armed).toBe(0);
+  expect(result.shiftFirst).toBe(-1);
+  expect(result.shiftReleased).toBe(0);
+  expect(result.rightShift).toBe(0);
+  for (const action of ["pause", "reset", "blur"]) {
+    expect(result[`${action}Before`]).toBe(1);
+    expect(result[action]).toBe(0);
+    expect(result[`${action}Repeat`]).toBe(0);
+  }
 });
 
 test("Escape exits fullscreen instead of pausing", async ({ page }) => {

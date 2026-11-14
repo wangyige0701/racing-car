@@ -733,7 +733,8 @@ kbd {
 }
 .driving-guide {
   display: flex;
-  gap: 25px;
+  flex-wrap: wrap;
+  gap: 12px 25px;
   align-items: center;
   justify-content: flex-start;
   padding: 19px 0;

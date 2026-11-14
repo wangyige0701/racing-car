@@ -16,6 +16,7 @@ const drivingKeys = new Set([
   "Space",
   "KeyQ",
   "KeyE",
+  "ShiftLeft",
 ]);
 
 /** 键盘、标准手柄和触控共用同一份归一化驾驶输入契约。 */
@@ -25,6 +26,7 @@ export class InputManager {
   private touchSteering = 0;
   private touchLook = 0;
   private brakeHeldSeconds = 0;
+  private heldSteering: number | undefined;
   private readonly value = emptyInput();
   private readonly pad = emptyInput();
   private padNeedsNeutral = true;
@@ -80,11 +82,19 @@ export class InputManager {
     }
     if (this.enabled && drivingKeys.has(event.code)) {
       this.keys.add(event.code);
+      if (this.keys.has("ShiftLeft") && this.heldSteering === undefined) {
+        const left = this.keys.has("KeyA") || this.keys.has("ArrowLeft");
+        const right = this.keys.has("KeyD") || this.keys.has("ArrowRight");
+        const steering = Number(right) - Number(left);
+        // 在按键事件中锁定，快速松开方向键也不会漏掉；先按 Shift 时等待首次转向。
+        if (steering !== 0) this.heldSteering = steering;
+      }
       this.source = "键盘";
     }
   };
   private readonly keyUp = (event: KeyboardEvent): void => {
     this.keys.delete(event.code);
+    if (event.code === "ShiftLeft") this.heldSteering = undefined;
     if (!this.digitalBrakePressed()) this.brakeHeldSeconds = 0;
   };
   private readonly lostFocus = (): void => {
@@ -155,6 +165,7 @@ export class InputManager {
   read(dt = 0): DriverInput {
     if (!this.enabled) {
       this.brakeHeldSeconds = 0;
+      this.heldSteering = undefined;
       this.value.throttle = this.value.brake = this.value.steer = this.value.handbrake = 0;
       return this.value;
     }
@@ -175,7 +186,8 @@ export class InputManager {
     const left = this.keys.has("KeyA") || this.keys.has("ArrowLeft") || this.touch.has("left");
     const right = this.keys.has("KeyD") || this.keys.has("ArrowRight") || this.touch.has("right");
     this.value.steer =
-      left || right ? Number(right) - Number(left) : this.touchSteering || this.pad.steer;
+      this.heldSteering ??
+      (left || right ? Number(right) - Number(left) : this.touchSteering || this.pad.steer);
     this.value.handbrake = Math.max(
       this.pad.handbrake,
       Number(this.keys.has("Space") || this.touch.has("handbrake")),
@@ -185,6 +197,7 @@ export class InputManager {
 
   clear(): void {
     this.brakeHeldSeconds = 0;
+    this.heldSteering = undefined;
     this.keys.clear();
     this.touch.clear();
     this.touchSteering = 0;
