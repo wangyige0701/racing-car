@@ -227,6 +227,11 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           </button>
         </div>
         <div class="scene-vignette"></div>
+        <div
+          v-if="ready && diagnostics.cameraMode === 'cockpit'"
+          class="windshield-glass"
+          aria-hidden="true"
+        ></div>
         <div v-if="fullscreen && ready" class="fullscreen-telemetry" aria-label="全屏引擎信息">
           <span>{{ diagnostics.backend }}</span>
           <b>{{ diagnostics.fps || "—" }} FPS</b>

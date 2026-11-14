@@ -276,7 +276,8 @@ test("fullscreen keeps diagnostic telemetry over the running WebGPU scene", asyn
   await page.keyboard.press("c");
   await expect(page.getByTestId("camera-mode")).toHaveText("驾驶舱");
   await expect(page.locator(".driving-panel")).toHaveClass(/cockpit-view/);
-  await expect(page.locator(".cockpit-view .track-map")).toHaveCSS("transform", /matrix3d/);
+  await expect(page.locator(".windshield-glass")).toBeVisible();
+  await expect(page.locator(".cockpit-view .track-map")).toHaveCSS("transform", /matrix\(/);
   const [mapBox, panelBox] = await Promise.all([
     page.locator(".cockpit-view .track-map").boundingBox(),
     page.locator(".driving-panel").boundingBox(),
@@ -285,7 +286,21 @@ test("fullscreen keeps diagnostic telemetry over the running WebGPU scene", asyn
   expect(Math.abs(mapBox.x + mapBox.width / 2 - (panelBox.x + panelBox.width / 2))).toBeLessThan(
     12,
   );
-  expect(mapBox.y + mapBox.height / 2).toBeGreaterThan(panelBox.y + panelBox.height * 0.55);
+  expect(mapBox.y).toBeGreaterThan(panelBox.y + panelBox.height * 0.1);
+  expect(mapBox.y + mapBox.height).toBeLessThan(panelBox.y + panelBox.height * 0.5);
+  await expect(page.locator(".cockpit-view .track-map")).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
+  await page.keyboard.down("q");
+  await page.waitForTimeout(180);
+  const turnedMapBox = await page.locator(".cockpit-view .track-map").boundingBox();
+  await page.keyboard.up("q");
+  if (!turnedMapBox) throw new Error("左右观察后投影地图消失");
+  expect(Math.abs(turnedMapBox.x - mapBox.x)).toBeLessThan(0.1);
+  expect(Math.abs(turnedMapBox.y - mapBox.y)).toBeLessThan(0.1);
+  expect(Math.abs(turnedMapBox.width - mapBox.width)).toBeLessThan(0.1);
+  expect(Math.abs(turnedMapBox.height - mapBox.height)).toBeLessThan(0.1);
   const speedometer = page.locator(".speedometer");
   const [telemetryBox, speedometerBox] = await Promise.all([
     telemetry.boundingBox(),

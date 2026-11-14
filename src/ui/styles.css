@@ -284,6 +284,32 @@ kbd {
   );
   pointer-events: none;
 }
+.windshield-glass {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.windshield-glass::before {
+  content: "";
+  position: absolute;
+  inset: 5% 7% 24%;
+  background:
+    linear-gradient(118deg, transparent 18%, #e6ffff0d 31%, transparent 42%),
+    linear-gradient(70deg, transparent 57%, #d8f8ff0a 67%, transparent 76%);
+  box-shadow: inset 0 1px #efffff14;
+  clip-path: polygon(5% 0, 95% 0, 100% 100%, 0 100%);
+}
+.windshield-glass::after {
+  content: "";
+  position: absolute;
+  right: 14%;
+  bottom: 24%;
+  left: 14%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e3ffff38 48%, transparent);
+  box-shadow: 0 0 8px #d8f8ff2e;
+}
 .fullscreen-telemetry {
   position: absolute;
   right: 24px;
@@ -441,45 +467,66 @@ kbd {
   color: #cbdab9;
 }
 .cockpit-view .track-map {
+  top: clamp(240px, 40vh, 420px);
   left: 50%;
-  bottom: clamp(176px, 22vh, 260px);
-  width: 164px;
-  padding: 10px 12px 8px;
-  border-color: #d9f58266;
-  background: linear-gradient(145deg, #173a2a82 0%, #07150d52 100%);
-  box-shadow:
-    inset 0 0 18px #d9f5821c,
-    0 0 0 1px #d9f5821a,
-    0 8px 24px #06100d70,
-    0 0 20px #d9f58224;
-  backdrop-filter: blur(4px);
-  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 94%);
-  transform: translateX(-50%) perspective(600px) rotateX(8deg);
-  transform-origin: bottom center;
+  bottom: auto;
+  width: 108px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  clip-path: none;
+  mix-blend-mode: normal;
+  opacity: 1;
+  transform: translateX(-50%);
+  transform-origin: center;
 }
 .cockpit-view .track-map::before {
-  content: "";
+  content: "NAV";
   position: absolute;
-  inset: 0;
-  background:
-    repeating-linear-gradient(0deg, transparent 0 11px, #d9f58212 12px),
-    repeating-linear-gradient(90deg, transparent 0 11px, #d9f5820d 12px);
-  opacity: 0.8;
+  top: -15px;
+  left: 50%;
+  color: #d9f582;
+  font:
+    8px Consolas,
+    monospace;
+  letter-spacing: 3px;
+  text-shadow:
+    0 0 3px #fbffe8,
+    0 0 10px #d9f582;
+  transform: translateX(-50%);
   pointer-events: none;
 }
-.cockpit-view .track-map > * {
-  position: relative;
-  z-index: 1;
+.cockpit-view .track-map::after {
+  content: "";
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  width: 72px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #d9f582, transparent);
+  box-shadow: 0 0 7px #d9f582;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 .cockpit-view .track-map svg {
-  filter: drop-shadow(0 0 4px #d9f582a8);
+  height: 108px;
+  margin: 0;
+  filter: drop-shadow(0 0 2px #f7ffdc) drop-shadow(0 0 8px #d9f582);
+}
+.cockpit-view .track-map polygon:first-child {
+  stroke: #efffc8;
+  stroke-opacity: 0.32;
+}
+.cockpit-view .track-map polygon:nth-child(2) {
+  stroke: #f6ffdc;
+  stroke-opacity: 1;
+  stroke-width: 4;
 }
 .cockpit-view .map-heading,
 .cockpit-view .map-caption {
-  color: #e6f5c8;
-}
-.cockpit-view .map-caption b {
-  color: #d9f582;
+  display: none;
 }
 .speedometer {
   position: absolute;
@@ -1016,13 +1063,13 @@ footer i {
     display: none;
   }
   .cockpit-view .track-map {
+    top: 30%;
     left: 50%;
-    bottom: 96px;
-    width: 92px;
-    padding: 7px 8px;
+    bottom: auto;
+    width: 76px;
   }
   .cockpit-view .track-map svg {
-    height: 92px;
+    height: 76px;
   }
   .dynamics-hud {
     top: 65px;

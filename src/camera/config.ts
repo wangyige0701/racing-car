@@ -7,9 +7,9 @@ export const CAMERA_LABELS: Record<CameraMode, string> = {
   hood: "引擎盖",
   bumper: "保险杠",
 };
-// 左座视点位于原始 GLB 方向盘的上方和后方（+X 为驾驶员左侧）。
+// 左座视点位于方向盘后上方，以保留完整仪表台、方向盘和前风挡（+X 为驾驶员左侧）。
 export const CAMERA_ANCHORS = {
-  cockpit: { x: CAR_ASSET.driverX, y: 0.4, z: 0.34, lookY: -2.7 },
+  cockpit: { x: CAR_ASSET.driverX, y: 0.42, z: 0.22, lookY: -1.55 },
   hood: { x: 0, y: 0.28, z: 1.44, lookY: 0.14 },
   bumper: { x: 0, y: -0.12, z: 2.28, lookY: 0.02 },
 } as const;

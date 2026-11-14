@@ -1,15 +1,20 @@
 import {
   Box3,
+  BoxGeometry,
   CanvasTexture,
+  CylinderGeometry,
   DoubleSide,
   Group,
   Mesh,
   MeshBasicNodeMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
+  Path,
   PlaneGeometry,
   Quaternion,
   SRGBColorSpace,
+  Shape,
+  ShapeGeometry,
   Vector3,
 } from "three/webgpu";
 import type { Object3D } from "three/webgpu";
@@ -27,6 +32,7 @@ export class VehicleVisual {
   private readonly pivots: Group[] = [];
   private readonly wheels: Group[] = [];
   private readonly steering = new Group();
+  private readonly cockpitFrame = new Group();
   private readonly brakeMaterials = new Set<MeshStandardMaterial>();
   private readonly glass: Object3D[] = [];
   private readonly screenCanvas = document.createElement("canvas");
@@ -58,6 +64,37 @@ export class VehicleVisual {
     model.scale.setScalar(CAR_ASSET.scale);
     model.position.set(0, CAR_ASSET.offsetY, CAR_ASSET.offsetZ);
     this.root.add(model);
+    this.cockpitFrame.name = "CockpitWindshieldFrame";
+    const frameMaterial = new MeshStandardMaterial({
+      color: "#101714",
+      metalness: 0.35,
+      roughness: 0.3,
+    });
+    const addPillar = (name: string, x: number) => {
+      const lower = new Vector3(x, -0.04, 1.07);
+      const upper = new Vector3(x, 1.08, 0.78);
+      const direction = upper.clone().sub(lower);
+      const pillar = new Mesh(
+        new CylinderGeometry(0.03, 0.044, direction.length(), 10),
+        frameMaterial,
+      );
+      pillar.name = name;
+      pillar.position.copy(lower).addScaledVector(direction, 0.5);
+      pillar.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), direction.normalize());
+      pillar.castShadow = false;
+      pillar.receiveShadow = false;
+      this.cockpitFrame.add(pillar);
+    };
+    addPillar("CockpitAPillarLeft", 0.76);
+    addPillar("CockpitAPillarRight", -0.76);
+    const header = new Mesh(new BoxGeometry(1.58, 0.048, 0.052), frameMaterial);
+    header.name = "CockpitWindshieldHeader";
+    header.position.set(0, 1.08, 0.78);
+    header.castShadow = false;
+    header.receiveShadow = false;
+    this.cockpitFrame.add(header);
+    this.cockpitFrame.visible = false;
+    this.root.add(this.cockpitFrame);
     this.root.updateMatrixWorld(true);
     const required = (name: string) => {
       const node = model.getObjectByName(name);
@@ -149,21 +186,54 @@ export class VehicleVisual {
     for (const part of wheelParts) this.steering.attach(part);
 
     // 以车内小型遥测屏替代源模型的静态图案。
-    this.screenCanvas.width = 512;
-    this.screenCanvas.height = 192;
+    this.screenCanvas.width = 768;
+    this.screenCanvas.height = 288;
     this.screenTexture = new CanvasTexture(this.screenCanvas);
     this.screenTexture.colorSpace = SRGBColorSpace;
+    const dashboardPosition = new Vector3(
+      CAR_ASSET.driverX,
+      0.742 * CAR_ASSET.scale + CAR_ASSET.offsetY,
+      1.222 * CAR_ASSET.scale + CAR_ASSET.offsetZ,
+    );
+    const bezelShape = new Shape();
+    bezelShape.moveTo(-0.176, -0.072);
+    bezelShape.lineTo(-0.147, -0.095);
+    bezelShape.lineTo(0.147, -0.095);
+    bezelShape.lineTo(0.176, -0.072);
+    bezelShape.lineTo(0.164, 0.075);
+    bezelShape.lineTo(-0.164, 0.075);
+    bezelShape.closePath();
+    const displayCutout = new Path();
+    displayCutout.moveTo(-0.145, 0.042);
+    displayCutout.lineTo(-0.137, 0.05);
+    displayCutout.lineTo(0.137, 0.05);
+    displayCutout.lineTo(0.145, -0.043);
+    displayCutout.lineTo(0.137, -0.051);
+    displayCutout.lineTo(-0.137, -0.051);
+    displayCutout.closePath();
+    bezelShape.holes.push(displayCutout);
+    const displayBezel = new Mesh(
+      new ShapeGeometry(bezelShape),
+      new MeshStandardMaterial({
+        color: "#111916",
+        metalness: 0.5,
+        roughness: 0.35,
+        side: DoubleSide,
+      }),
+    );
+    displayBezel.name = "LiveDashboardBezel";
+    displayBezel.position.copy(dashboardPosition);
+    displayBezel.position.z -= 0.008;
+    displayBezel.rotation.set(-0.08, Math.PI, 0);
+    this.root.add(displayBezel);
     const screen = new Mesh(
-      new PlaneGeometry(0.31, 0.116),
-      new MeshBasicNodeMaterial({ map: this.screenTexture, toneMapped: false }),
+      new PlaneGeometry(0.276, 0.101),
+      new MeshBasicNodeMaterial({ map: this.screenTexture, toneMapped: false, transparent: true }),
     );
     screen.name = "LiveDashboard";
-    screen.position.set(
-      CAR_ASSET.driverX,
-      0.755 * CAR_ASSET.scale + CAR_ASSET.offsetY,
-      1.205 * CAR_ASSET.scale + CAR_ASSET.offsetZ - 0.015,
-    );
-    screen.rotation.y = Math.PI;
+    screen.position.copy(dashboardPosition);
+    screen.position.z -= 0.004;
+    screen.rotation.set(-0.08, Math.PI, 0);
     this.root.add(screen);
     this.root.userData.modelBounds = new Box3()
       .setFromObject(model, true)
@@ -197,32 +267,63 @@ export class VehicleVisual {
       this.screenState = key;
       const ctx = this.screenCanvas.getContext("2d");
       if (ctx) {
-        ctx.fillStyle = "#081314";
-        ctx.fillRect(0, 0, 512, 192);
+        const background = ctx.createLinearGradient(0, 0, 768, 288);
+        background.addColorStop(0, "#0d1714");
+        background.addColorStop(0.68, "#040a08");
+        background.addColorStop(1, "#101b15");
+        ctx.clearRect(0, 0, 768, 288);
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(8, 8, 752, 272, 22);
+        ctx.clip();
+        ctx.fillStyle = background;
+        ctx.fillRect(0, 0, 768, 288);
+        ctx.strokeStyle = "#b5cc8d35";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(10, 10, 748, 268);
         ctx.fillStyle = "#d8f58b";
-        ctx.font = "bold 92px monospace";
-        ctx.fillText(String(speed).padStart(3, "0"), 25, 116);
-        ctx.font = "26px monospace";
-        ctx.fillStyle = "#a5b7bb";
-        ctx.fillText("KM/H", 200, 112);
-        ctx.fillText(`${rpm} RPM`, 28, 166);
-        ctx.font = "bold 78px monospace";
-        ctx.fillStyle = "#f3f5e4";
-        ctx.fillText(vehicle.gear === -1 ? "R" : String(vehicle.gear), 414, 113);
-        ctx.fillStyle = "#31433c";
-        ctx.fillRect(24, 18, 464, 12);
-        ctx.fillStyle = rpm > 6500 ? "#ff7848" : "#cde982";
-        ctx.fillRect(24, 18, (464 * rpm) / 7500, 12);
+        ctx.fillRect(26, 28, 182, 5);
+        ctx.fillStyle = "#9ba996";
+        ctx.font = "16px Consolas, monospace";
+        ctx.fillText("SPEED", 28, 59);
+        ctx.font = "bold 132px Consolas, monospace";
+        ctx.fillStyle = "#edf5d9";
+        ctx.fillText(String(speed).padStart(3, "0"), 24, 184);
+        ctx.font = "23px Consolas, monospace";
+        ctx.fillStyle = "#aebda8";
+        ctx.fillText("KM/H", 342, 174);
+        ctx.fillStyle = "#ffffff18";
+        ctx.fillRect(480, 34, 2, 160);
+        ctx.fillStyle = "#9ba996";
+        ctx.font = "16px Consolas, monospace";
+        ctx.fillText("GEAR", 536, 59);
+        ctx.font = "bold 108px Consolas, monospace";
+        ctx.fillStyle = "#d8f58b";
+        ctx.fillText(vehicle.gear === -1 ? "R" : String(vehicle.gear), 560, 176);
+        ctx.fillStyle = "#1f342c";
+        ctx.fillRect(26, 216, 716, 10);
+        const segments = 18;
+        const activeSegments = Math.round((Math.min(rpm, 7500) / 7500) * segments);
+        for (let i = 0; i < segments; i++) {
+          ctx.fillStyle = i < activeSegments ? (i > 14 ? "#f08c62" : "#d8f58b") : "#385044";
+          ctx.fillRect(26 + i * 40, 216, 31, 10);
+        }
+        ctx.font = "18px Consolas, monospace";
+        ctx.fillStyle = "#aebda8";
+        ctx.fillText(`${rpm.toString().padStart(4, "0")} RPM`, 28, 260);
+        ctx.fillStyle = "#d8f58b";
+        ctx.fillText("AUTO", 645, 260);
+        ctx.restore();
         this.screenTexture.needsUpdate = true;
       }
     }
   }
 
   setView(mode: CameraMode): void {
-    // 保留真实车身、A 柱、后视镜和座舱；仅在驾驶员视角隐藏玻璃，
-    // 避免透明表面叠加而遮挡道路。
+    // 原模型玻璃包含覆盖座舱的多层面；驾驶舱改用单独的风挡反射层，避免内饰发糊。
     this.glass.forEach((object) => {
       object.visible = mode !== "cockpit";
     });
+    this.cockpitFrame.visible = mode === "cockpit";
   }
 }
