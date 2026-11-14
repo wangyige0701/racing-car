@@ -202,7 +202,7 @@ export class GameApplication {
   private readonly simulate = (dt: number): void => {
     if (!this.physics || !this.vehicle) return;
     const start = performance.now();
-    this.vehicle.beforeStep(dt, this.input?.read() ?? this.idleInput);
+    this.vehicle.beforeStep(dt, this.input?.read(dt) ?? this.idleInput);
     this.physics.step(dt);
     this.vehicle.afterStep(dt);
     this.laps?.update(

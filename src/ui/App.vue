@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { initialDiagnostics } from "../core/types";
 import { CAMERA_LABELS } from "../camera/config";
 import type { GameApplication } from "../core/GameApplication";
@@ -35,6 +35,9 @@ function look(value: number, event: PointerEvent) {
 let application: GameApplication | undefined;
 let unmounted = false;
 const fullscreen = ref(false);
+const cursorHidden = ref(false);
+let cursorTimer: ReturnType<typeof setTimeout> | undefined;
+let fullscreenPending = false;
 const ready = computed(() => ["running", "paused"].includes(diagnostics.value.phase));
 const paused = computed(() => diagnostics.value.phase === "paused");
 const time = computed(() => {
@@ -55,16 +58,37 @@ const status = computed(
 function fullscreenChanged() {
   fullscreen.value = document.fullscreenElement === drivingPanel.value;
 }
+function showCursor() {
+  clearTimeout(cursorTimer);
+  cursorHidden.value = false;
+  if (fullscreen.value && diagnostics.value.phase === "running") {
+    cursorTimer = setTimeout(() => {
+      cursorHidden.value = true;
+    }, 2500);
+  }
+}
+watch([fullscreen, () => diagnostics.value.phase], showCursor);
+function fullscreenKey(event: KeyboardEvent) {
+  if (event.code !== "F11" || !ready.value) return;
+  event.preventDefault();
+  if (!event.repeat) void toggleFullscreen();
+}
 async function toggleFullscreen() {
+  if (fullscreenPending) return;
+  fullscreenPending = true;
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
     else await drivingPanel.value?.requestFullscreen();
   } catch {
     // 全屏为可选能力，嵌入式浏览器可能拒绝该请求。
+  } finally {
+    fullscreenPending = false;
   }
 }
 onMounted(async () => {
   document.addEventListener("fullscreenchange", fullscreenChanged);
+  window.addEventListener("keydown", fullscreenKey);
+  window.addEventListener("focus", showCursor);
   try {
     const { GameApplication } = await import("../core/GameApplication");
     if (unmounted || !viewport.value) return;
@@ -86,6 +110,9 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   unmounted = true;
   document.removeEventListener("fullscreenchange", fullscreenChanged);
+  window.removeEventListener("keydown", fullscreenKey);
+  window.removeEventListener("focus", showCursor);
+  clearTimeout(cursorTimer);
   application?.dispose();
 });
 function retry() {
@@ -193,7 +220,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             :aria-label="fullscreen ? '退出全屏' : '进入全屏'"
             @click="toggleFullscreen"
           >
-            {{ fullscreen ? "退出全屏" : "全屏" }}
+            {{ fullscreen ? "退出全屏" : "全屏" }} <kbd>F11</kbd>
           </button>
           <button class="button primary" :disabled="!ready" @click="application?.togglePause()">
             {{ paused ? "继续驾驶" : "暂停驾驶" }} <kbd>ESC</kbd>
@@ -207,7 +234,11 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
         :class="{
           'onboard-view': diagnostics.cameraMode !== 'chase',
           'cockpit-view': diagnostics.cameraMode === 'cockpit',
+          'cursor-hidden': cursorHidden,
         }"
+        @pointermove="showCursor"
+        @pointerdown="showCursor"
+        @wheel="showCursor"
         aria-label="赛车自由练习"
       >
         <div ref="viewport" class="viewport" data-testid="viewport"></div>
@@ -563,7 +594,8 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
 
       <section class="driving-guide" aria-label="驾驶操作">
         <div><kbd>W</kbd><kbd>↑</kbd><span>加速</span></div>
-        <div><kbd>S</kbd><kbd>↓</kbd><span>制动 / 停稳后倒车</span></div>
+        <div><kbd>S</kbd><kbd>↓</kbd><span>点按轻刹 · 长按渐强 / 停稳后倒车</span></div>
+        <div><kbd>F11</kbd><span>切换全屏</span></div>
         <div><kbd>W</kbd><kbd>S</kbd><span>静止烧胎 · 松开制动弹射</span></div>
         <div><kbd>A</kbd><kbd>D</kbd><span>平滑转向</span></div>
         <div><kbd>W</kbd><kbd>Space</kbd><span>配合方向持续漂移 · 低速原地转向</span></div>

@@ -128,7 +128,8 @@ export class VehiclePhysics {
       movement < VEHICLE.drift.pivotMaxSpeed &&
       this.groundedWheels >= 3;
     if (both) {
-      this.brake = Math.max(accelerator, pedal);
+      // 烧胎需要锁住前轴；行驶中则保留脚刹力度，油门不能把轻刹提升为满刹。
+      this.brake = this.burnout ? Math.max(accelerator, pedal) : pedal;
       if (this.burnout) drive = accelerator;
       this.directionWait = 0;
     } else if (desired !== 0) {

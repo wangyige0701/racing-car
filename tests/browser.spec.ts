@@ -321,6 +321,54 @@ test("fullscreen keeps diagnostic telemetry over the running WebGPU scene", asyn
     .toBe(true);
 });
 
+test("F11 切换全屏，闲置鼠标隐藏且移动、点击和暂停恢复光标", async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto("/");
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  const panel = page.locator(".driving-panel");
+  const canvas = page.locator(".viewport canvas");
+  const isFullscreen = () => panel.evaluate((element) => document.fullscreenElement === element);
+  await page.keyboard.press("F11");
+  await expect.poll(isFullscreen).toBe(true);
+  await page.mouse.move(300, 300);
+  await expect(canvas).not.toHaveCSS("cursor", "none");
+  await expect(canvas).toHaveCSS("cursor", "none");
+  await page.mouse.move(350, 300);
+  await expect(canvas).not.toHaveCSS("cursor", "none");
+  await expect(canvas).toHaveCSS("cursor", "none");
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(canvas).not.toHaveCSS("cursor", "none");
+  await page.screenshot({
+    path: testInfo.outputPath("fullscreen.jpg"),
+    type: "jpeg",
+    quality: 65,
+    scale: "css",
+  });
+  await page.keyboard.press("F11");
+  await expect.poll(isFullscreen).toBe(false);
+  await expect(canvas).not.toHaveCSS("cursor", "none");
+  // 长按只切换一次，浏览器自动重复按键也不能触发原生全屏。
+  await page.keyboard.down("F11");
+  await expect.poll(isFullscreen).toBe(true);
+  await page.keyboard.down("F11");
+  await page.keyboard.up("F11");
+  expect(await isFullscreen()).toBe(true);
+  await expect(canvas).toHaveCSS("cursor", "none");
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await expect(page.getByText("驾驶已暂停", { exact: true })).toBeVisible();
+  await expect(canvas).not.toHaveCSS("cursor", "none");
+  await page.waitForTimeout(2700);
+  await expect(canvas).not.toHaveCSS("cursor", "none");
+  await page.keyboard.press("Escape");
+  await expect.poll(isFullscreen).toBe(false);
+  expect(errors).toEqual([]);
+});
+
 test("handbrake driving and all four views render with no GPU errors", async ({
   page,
 }, testInfo) => {

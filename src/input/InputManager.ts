@@ -2,6 +2,8 @@ import { emptyInput } from "../vehicle/config";
 import type { DriverInput } from "../vehicle/config";
 
 export type TouchControl = "throttle" | "brake" | "left" | "right" | "handbrake";
+const DIGITAL_BRAKE_INITIAL = 0.12;
+const DIGITAL_BRAKE_RAMP_SECONDS = 0.9;
 const drivingKeys = new Set([
   "KeyW",
   "KeyS",
@@ -22,6 +24,7 @@ export class InputManager {
   private readonly touch = new Set<TouchControl>();
   private touchSteering = 0;
   private touchLook = 0;
+  private brakeHeldSeconds = 0;
   private readonly value = emptyInput();
   private readonly pad = emptyInput();
   private padNeedsNeutral = true;
@@ -82,6 +85,7 @@ export class InputManager {
   };
   private readonly keyUp = (event: KeyboardEvent): void => {
     this.keys.delete(event.code);
+    if (!this.digitalBrakePressed()) this.brakeHeldSeconds = 0;
   };
   private readonly lostFocus = (): void => {
     this.clear();
@@ -93,6 +97,11 @@ export class InputManager {
       this.touch.add(control);
       this.source = "触控";
     } else this.touch.delete(control);
+    if (!this.digitalBrakePressed()) this.brakeHeldSeconds = 0;
+  }
+
+  private digitalBrakePressed(): boolean {
+    return this.keys.has("KeyS") || this.keys.has("ArrowDown") || this.touch.has("brake");
   }
 
   setTouchSteering(value: number): void {
@@ -143,8 +152,9 @@ export class InputManager {
       this.source = "手柄";
   }
 
-  read(): DriverInput {
+  read(dt = 0): DriverInput {
     if (!this.enabled) {
+      this.brakeHeldSeconds = 0;
       this.value.throttle = this.value.brake = this.value.steer = this.value.handbrake = 0;
       return this.value;
     }
@@ -152,10 +162,16 @@ export class InputManager {
       this.pad.throttle,
       Number(this.keys.has("KeyW") || this.keys.has("ArrowUp") || this.touch.has("throttle")),
     );
-    this.value.brake = Math.max(
-      this.pad.brake,
-      Number(this.keys.has("KeyS") || this.keys.has("ArrowDown") || this.touch.has("brake")),
-    );
+    // 按物理步长累加，避免制动力随渲染帧率或键盘重复事件变化。
+    const braking = this.digitalBrakePressed();
+    this.brakeHeldSeconds = braking
+      ? Math.min(DIGITAL_BRAKE_RAMP_SECONDS, this.brakeHeldSeconds + Math.max(0, dt))
+      : 0;
+    const digitalBrake = braking
+      ? DIGITAL_BRAKE_INITIAL +
+        (1 - DIGITAL_BRAKE_INITIAL) * (this.brakeHeldSeconds / DIGITAL_BRAKE_RAMP_SECONDS)
+      : 0;
+    this.value.brake = Math.max(this.pad.brake, digitalBrake);
     const left = this.keys.has("KeyA") || this.keys.has("ArrowLeft") || this.touch.has("left");
     const right = this.keys.has("KeyD") || this.keys.has("ArrowRight") || this.touch.has("right");
     this.value.steer =
@@ -168,6 +184,7 @@ export class InputManager {
   }
 
   clear(): void {
+    this.brakeHeldSeconds = 0;
     this.keys.clear();
     this.touch.clear();
     this.touchSteering = 0;

@@ -267,6 +267,10 @@ kbd {
   position: absolute;
   inset: 0;
 }
+.driving-panel:fullscreen.cursor-hidden,
+.driving-panel:fullscreen.cursor-hidden * {
+  cursor: none !important;
+}
 .viewport canvas {
   display: block;
   width: 100%;

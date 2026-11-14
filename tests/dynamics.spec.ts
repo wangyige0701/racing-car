@@ -171,6 +171,26 @@ test("service brake sheds speed quickly before reverse can engage", async () => 
   }
 });
 
+test("行驶中油门不放大轻刹力度，轻刹比满刹保留更多速度", async () => {
+  const speeds: number[] = [];
+  for (const brake of [0.2, 1]) {
+    const { world, vehicle, step } = await pad();
+    try {
+      step(180, { throttle: 1 });
+      const entry = vehicle.speed;
+      step(12, { throttle: 1, brake });
+      expect(vehicle.burnout).toBe(false);
+      expect(vehicle.brake).toBe(brake);
+      expect(vehicle.throttle).toBe(0);
+      expect(vehicle.speed).toBeLessThan(entry);
+      speeds.push(vehicle.speed);
+    } finally {
+      world.free();
+    }
+  }
+  expect(speeds[0] - speeds[1]).toBeGreaterThan(2);
+});
+
 test("sideways motion cannot select reverse before the chassis has stopped", async () => {
   const { world, vehicle, step } = await pad();
   try {
