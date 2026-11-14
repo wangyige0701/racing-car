@@ -1,4 +1,5 @@
-import type { CameraMode } from "../camera/config";
+import { DEFAULT_CAMERA_SETTINGS, type CameraMode, type CameraSettings } from "../camera/config";
+import { defaultQuality, type Quality } from "../rendering/quality";
 import type { TrackId } from "../track/catalog";
 export type BootPhase = "starting" | "running" | "paused" | "error";
 
@@ -53,6 +54,8 @@ export interface Diagnostics {
   driftRecovering: boolean;
   driftTime: number;
   cameraMode: CameraMode;
+  cameraSettings: CameraSettings;
+  quality: Quality;
   smokeParticles: number;
   audioStatus: "locked" | "running" | "suspended" | "unavailable";
   audioMuted: boolean;
@@ -111,6 +114,8 @@ export function initialDiagnostics(): Diagnostics {
     driftRecovering: false,
     driftTime: 0,
     cameraMode: "chase",
+    cameraSettings: { ...DEFAULT_CAMERA_SETTINGS },
+    quality: defaultQuality(),
     smokeParticles: 0,
     audioStatus: "locked",
     audioMuted: false,

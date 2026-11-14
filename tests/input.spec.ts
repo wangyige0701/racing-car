@@ -9,12 +9,14 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
     let pauses = 0,
       resets = 0,
       blurs = 0,
-      cameras = 0;
+      cameras = 0,
+      volume = 0;
     const input = new InputManager(
       () => pauses++,
       () => resets++,
       () => blurs++,
       () => cameras++,
+      (amount: number) => (volume += amount),
     );
     const pad = {
       connected: true,
@@ -37,6 +39,9 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
       snapshots.handbrakeReleased = { ...input.read() };
       key("keydown", "KeyC");
       key("keydown", "KeyC", true);
+      key("keydown", "BracketLeft");
+      key("keydown", "BracketLeft", true);
+      key("keydown", "BracketRight");
       key("keydown", "KeyW");
       window.dispatchEvent(new Event("blur"));
       key("keydown", "KeyW", true);
@@ -81,7 +86,7 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
       pad.buttons[0].value = 1;
       input.poll();
       snapshots.repressedHandbrake = { ...input.read() };
-      snapshots.callbacks = { pauses, resets, blurs, cameras };
+      snapshots.callbacks = { pauses, resets, blurs, cameras, volume };
     } finally {
       input.dispose();
     }
@@ -102,6 +107,41 @@ test("input release, focus loss, browser defaults and gamepad neutral latch", as
   expect(result.pad).toMatchObject({ throttle: 0.8, brake: 0 });
   expect((result.pad as { steer: number; handbrake: 0 }).steer).toBeGreaterThan(0.5);
   expect(result.repressed).toEqual({ throttle: 0.6, brake: 0, steer: 0, handbrake: 0 });
-  expect(result.callbacks).toEqual({ pauses: 2, resets: 1, blurs: 1, cameras: 2 });
+  expect(result.callbacks).toEqual({ pauses: 2, resets: 1, blurs: 1, cameras: 2, volume: 0 });
   expect(result.pausesAfterDispose).toBe(2);
+});
+
+test("Escape exits fullscreen instead of pausing", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "gpu", { value: undefined }));
+  await page.goto("/");
+  const result = await page.evaluate(async (modulePath) => {
+    const { InputManager } = await import(modulePath);
+    let pauses = 0,
+      exits = 0;
+    const input = new InputManager(
+      () => pauses++,
+      () => {},
+      () => {},
+    );
+    const original = document.exitFullscreen;
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      value: document.body,
+    });
+    Object.defineProperty(document, "exitFullscreen", {
+      configurable: true,
+      value: () => {
+        exits++;
+        return Promise.resolve();
+      },
+    });
+    try {
+      window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", cancelable: true }));
+      return { pauses, exits };
+    } finally {
+      input.dispose();
+      Object.defineProperty(document, "exitFullscreen", { configurable: true, value: original });
+    }
+  }, "/src/input/InputManager.ts");
+  expect(result).toEqual({ pauses: 0, exits: 1 });
 });

@@ -36,6 +36,7 @@ export class InputManager {
     private readonly reset: () => void,
     private readonly blur: () => void,
     private readonly camera: () => void = () => {},
+    private readonly adjustVolume: (amount: number) => void = () => {},
   ) {
     window.addEventListener("keydown", this.keyDown);
     window.addEventListener("keyup", this.keyUp);
@@ -53,6 +54,10 @@ export class InputManager {
     if (drivingKeys.has(event.code) || event.code === "Space") event.preventDefault();
     if (event.repeat) return;
     if (event.code === "Escape") {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen();
+        return;
+      }
       event.preventDefault();
       this.pause();
       return;
@@ -64,6 +69,10 @@ export class InputManager {
     if (event.code === "KeyC") {
       event.preventDefault();
       this.camera();
+      return;
+    }
+    if (event.code === "BracketLeft" || event.code === "BracketRight") {
+      this.adjustVolume(event.code === "BracketLeft" ? -0.05 : 0.05);
       return;
     }
     if (this.enabled && drivingKeys.has(event.code)) {

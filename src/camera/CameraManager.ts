@@ -50,7 +50,13 @@ export class CameraManager {
   }
 
   cycle(): void {
-    this.index = (this.index + 1) % CAMERA_MODES.length;
+    this.setMode(CAMERA_MODES[(this.index + 1) % CAMERA_MODES.length]);
+  }
+
+  setMode(mode: CameraMode): void {
+    const index = CAMERA_MODES.indexOf(mode);
+    if (index < 0 || index === this.index) return;
+    this.index = index;
     this.fromPosition.copy(this.camera.position);
     this.fromRotation.copy(this.camera.quaternion);
     this.progress = 0;

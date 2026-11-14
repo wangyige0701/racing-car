@@ -38,6 +38,7 @@ export class VehiclePhysics {
   private readonly up = new Vector3();
   private readonly contact = new Vector3();
   private readonly angularVelocity = new Vector3();
+  private readonly angularCorrection = new Vector3();
 
   constructor(
     world: RAPIER.World,
@@ -248,6 +249,19 @@ export class VehiclePhysics {
               (0.35 +
                 (0.65 * (this.drift.rearGrip - VEHICLE.drift.rearGripMinimum)) /
                   (1 - VEHICLE.drift.rearGripMinimum)),
+        );
+      this.body.addTorque(this.force, false);
+    }
+    if (contacts >= 3) {
+      this.body.angvel(this.angularVelocity);
+      this.force
+        .set(-this.up.z, 0, this.up.x)
+        .multiplyScalar(VEHICLE.uprightStiffness)
+        .addScaledVector(
+          this.angularCorrection
+            .copy(this.angularVelocity)
+            .addScaledVector(this.up, -this.angularVelocity.dot(this.up)),
+          -VEHICLE.uprightDamping,
         );
       this.body.addTorque(this.force, false);
     }

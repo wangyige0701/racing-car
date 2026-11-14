@@ -15,9 +15,9 @@ import { LapTimer } from "../track/LapTimer";
 import { InputManager } from "../input/InputManager";
 import type { TouchControl } from "../input/InputManager";
 import { emptyInput } from "../vehicle/config";
-import type { CameraSettings } from "../camera/config";
-import { QUALITY, defaultQuality, type Quality } from "../rendering/quality";
-import { DEFAULT_CAMERA_SETTINGS } from "../camera/config";
+import { QUALITY, type Quality } from "../rendering/quality";
+import type { CameraMode, CameraSettings } from "../camera/config";
+import { loadGameSettings, saveGameSettings } from "./settings";
 
 /** Runtime state stays outside Vue; HUD snapshots are published at 10 Hz. */
 export class GameApplication {
@@ -27,8 +27,8 @@ export class GameApplication {
   private vehicle?: VehiclePhysics;
   private laps?: LapTimer;
   private trackId: TrackId = "practice";
-  private muted = false;
-  private audioVolume = 0.35;
+  private muted: boolean;
+  private audioVolume: number;
   private input?: InputManager;
   private audio?: VehicleAudio;
   private readonly idleInput = emptyInput();
@@ -41,16 +41,25 @@ export class GameApplication {
   private previousTime = 0;
   private lastPublish = 0;
   private sampledFrames = 0;
-  private quality = defaultQuality();
-  private pixelRatioCap: number = QUALITY[this.quality].dpr;
-  private cameraSettings = { ...DEFAULT_CAMERA_SETTINGS };
+  private quality: Quality;
+  private pixelRatioCap: number;
+  private cameraSettings: CameraSettings;
+  private cameraMode: CameraMode;
   private disposed = false;
   private releasing: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly host: HTMLElement,
     private readonly publish: (snapshot: Diagnostics) => void,
-  ) {}
+  ) {
+    const settings = loadGameSettings();
+    this.muted = settings.audioMuted;
+    this.audioVolume = settings.audioVolume;
+    this.quality = settings.quality;
+    this.pixelRatioCap = QUALITY[this.quality].dpr;
+    this.cameraSettings = settings.cameraSettings;
+    this.cameraMode = settings.cameraMode;
+  }
 
   async start(): Promise<void> {
     if (this.disposed) return;
@@ -108,6 +117,7 @@ export class GameApplication {
         throw error;
       }
       this.scene.cameras.setSettings(this.cameraSettings);
+      this.scene.cameras.setMode(this.cameraMode);
       this.scene.setQuality(this.quality);
       this.scene.update(this.vehicle, 1, 0, physics, true);
       this.host.append(graphics.renderer.domElement);
@@ -124,6 +134,7 @@ export class GameApplication {
         () => this.resetVehicle(),
         this.pauseForFocus,
         () => this.cycleCamera(),
+        (amount) => this.adjustAudioVolume(amount),
       );
       this.audio = new VehicleAudio();
       this.audio.setVolume(this.audioVolume);
@@ -226,6 +237,7 @@ export class GameApplication {
     this.quality = quality;
     this.pixelRatioCap = QUALITY[quality].dpr;
     this.scene?.setQuality(quality);
+    this.saveSettings();
     this.resize();
   }
 
@@ -256,6 +268,8 @@ export class GameApplication {
   setCameraSettings(settings: CameraSettings): void {
     this.cameraSettings = { ...settings };
     this.scene?.cameras.setSettings(settings);
+    this.saveSettings();
+    this.emit();
   }
   look(value: number): void {
     this.input?.setLook(value);
@@ -264,19 +278,27 @@ export class GameApplication {
   cycleCamera(): void {
     if (!this.scene || !["running", "paused"].includes(this.diagnostics.phase)) return;
     this.scene.cameras.cycle();
+    this.cameraMode = this.scene.cameras.mode;
+    this.saveSettings();
     this.emit();
   }
 
   toggleAudio(): void {
     this.audio?.toggleMuted();
     this.muted = this.audio?.muted ?? this.muted;
+    this.saveSettings();
     this.emit();
   }
 
   setAudioVolume(volume: number): void {
     this.audioVolume = Math.max(0, Math.min(1, volume));
     this.audio?.setVolume(this.audioVolume);
+    this.saveSettings();
     this.emit();
+  }
+
+  private adjustAudioVolume(amount: number): void {
+    this.setAudioVolume(Math.round((this.audioVolume + amount) * 20) / 20);
   }
 
   resetVehicle(): void {
@@ -344,8 +366,10 @@ export class GameApplication {
         mapX: position.x,
         mapY: -position.z,
         heading:
-          (Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180) /
-          Math.PI,
+          ((Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180) /
+            Math.PI +
+            180) %
+          360,
         collisions: this.physics?.collisionCount ?? 0,
         impactStrength: this.physics?.impactStrength ?? 0,
         collisionRecent: (this.physics?.impactAge ?? 10) < 2,
@@ -357,6 +381,8 @@ export class GameApplication {
         driftRecovering: v.drift.recovering,
         driftTime: v.drift.duration,
         cameraMode: this.scene?.cameras.mode ?? "chase",
+        cameraSettings: { ...this.cameraSettings },
+        quality: this.quality,
         smokeParticles: this.scene?.smoke.count ?? 0,
         audioStatus: this.audio?.status ?? "locked",
         audioMuted: this.audio?.muted ?? false,
@@ -397,6 +423,16 @@ export class GameApplication {
       graphics?.dispose().catch((error: unknown) => {
         console.error("WebGPU 资源释放失败", error);
       }) ?? this.releasing;
+  }
+
+  private saveSettings(): void {
+    saveGameSettings({
+      audioMuted: this.muted,
+      audioVolume: this.audioVolume,
+      quality: this.quality,
+      cameraMode: this.cameraMode,
+      cameraSettings: this.cameraSettings,
+    });
   }
 
   dispose(): void {

@@ -107,6 +107,7 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
   await expect(page.getByTestId("backend")).toHaveText("WebGPU");
   await expect(page.locator("canvas")).toHaveCount(1);
   const startMapPosition = await page.getByTestId("map-marker").getAttribute("data-position");
+  const startHeading = Number(await page.getByTestId("map-marker").getAttribute("data-heading"));
   await page.locator("summary").click();
   await expect
     .poll(async () => Number((await page.getByTestId("frames").innerText()).replaceAll(",", "")))
@@ -132,7 +133,7 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
   await page.keyboard.down("d");
   await expect
     .poll(async () => Number(await page.getByTestId("map-marker").getAttribute("data-heading")))
-    .toBeLessThan(-10);
+    .toBeLessThan(startHeading - 10);
   await page.keyboard.up("d");
   await page.keyboard.up("w");
   await page.screenshot({ path: testInfo.outputPath("desktop.png"), fullPage: true });
@@ -182,6 +183,24 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
     .poll(async () => Number(await page.getByTestId("throttle").getAttribute("data-value")))
     .toBeLessThan(0.01);
   expect(errors).toEqual([]);
+});
+
+test("fullscreen keeps diagnostic telemetry over the running WebGPU scene", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "进入全屏" }).click();
+  await expect(page.getByLabel("全屏引擎信息")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.locator(".driving-panel").evaluate((panel) => document.fullscreenElement === panel),
+    )
+    .toBe(true);
+  await page.keyboard.press("Escape");
+  await expect
+    .poll(() =>
+      page.locator(".driving-panel").evaluate((panel) => document.fullscreenElement !== panel),
+    )
+    .toBe(true);
 });
 
 test("handbrake driving and all four views render with no GPU errors", async ({

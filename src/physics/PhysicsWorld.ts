@@ -38,11 +38,11 @@ export class PhysicsWorld {
     );
     for (const segment of track.barrierSegments()) {
       const collider = this.world.createCollider(
-        RAPIER.ColliderDesc.cuboid(0.23, 0.65, segment.length / 2)
-          .setTranslation(segment.x, segment.y + 0.65, segment.z)
+        RAPIER.ColliderDesc.roundCuboid(0.3, 0.5, segment.length / 2, 0.1)
+          .setTranslation(segment.x, segment.y + 0.5, segment.z)
           .setRotation(segment.rotation)
-          .setFriction(0.15)
-          .setRestitution(0.08),
+          .setFriction(0.05)
+          .setRestitution(0),
       );
       this.barriers.add(collider.handle);
     }

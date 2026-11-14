@@ -10,6 +10,7 @@ import { DEFAULT_CAMERA_SETTINGS } from "../camera/config";
 import { TRACKS, type TrackId } from "../track/catalog";
 
 const viewport = ref<HTMLDivElement>();
+const drivingPanel = ref<HTMLElement>();
 const diagnostics = shallowRef(initialDiagnostics());
 const quality = ref<Quality>(defaultQuality());
 const cameraSettings = ref({ ...DEFAULT_CAMERA_SETTINGS });
@@ -33,6 +34,7 @@ function look(value: number, event: PointerEvent) {
 }
 let application: GameApplication | undefined;
 let unmounted = false;
+const fullscreen = ref(false);
 const ready = computed(() => ["running", "paused"].includes(diagnostics.value.phase));
 const paused = computed(() => diagnostics.value.phase === "paused");
 const time = computed(() => {
@@ -50,12 +52,26 @@ const status = computed(
       error: "引擎已停止",
     })[diagnostics.value.phase],
 );
+function fullscreenChanged() {
+  fullscreen.value = document.fullscreenElement === drivingPanel.value;
+}
+async function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await drivingPanel.value?.requestFullscreen();
+  } catch {
+    // Fullscreen is optional and can be rejected by an embedded browser.
+  }
+}
 onMounted(async () => {
+  document.addEventListener("fullscreenchange", fullscreenChanged);
   try {
     const { GameApplication } = await import("../core/GameApplication");
     if (unmounted || !viewport.value) return;
     application = new GameApplication(viewport.value, (snapshot) => {
       diagnostics.value = snapshot;
+      quality.value = snapshot.quality;
+      cameraSettings.value = { ...snapshot.cameraSettings };
     });
     await application.start();
   } catch (error) {
@@ -69,6 +85,7 @@ onMounted(async () => {
 });
 onBeforeUnmount(() => {
   unmounted = true;
+  document.removeEventListener("fullscreenchange", fullscreenChanged);
   application?.dispose();
 });
 function retry() {
@@ -167,6 +184,14 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           >
             {{ CAMERA_LABELS[diagnostics.cameraMode] }} <kbd>C</kbd>
           </button>
+          <button
+            class="button secondary fullscreen-button"
+            :disabled="!ready"
+            :aria-label="fullscreen ? '退出全屏' : '进入全屏'"
+            @click="toggleFullscreen"
+          >
+            {{ fullscreen ? "退出全屏" : "全屏" }}
+          </button>
           <button class="button primary" :disabled="!ready" @click="application?.togglePause()">
             {{ paused ? "继续驾驶" : "暂停驾驶" }} <kbd>ESC</kbd>
           </button>
@@ -174,6 +199,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
       </section>
 
       <section
+        ref="drivingPanel"
         class="driving-panel"
         :class="{ 'onboard-view': diagnostics.cameraMode !== 'chase' }"
         aria-label="赛车自由练习"
@@ -186,8 +212,20 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           <button :disabled="!ready" @click="application?.togglePause()" aria-label="横屏暂停菜单">
             {{ paused ? "继续" : "暂停 / 设置" }}
           </button>
+          <button
+            :disabled="!ready"
+            @click="toggleFullscreen"
+            :aria-label="fullscreen ? '退出全屏' : '进入全屏'"
+          >
+            {{ fullscreen ? "退出" : "全屏" }}
+          </button>
         </div>
         <div class="scene-vignette"></div>
+        <div v-if="fullscreen && ready" class="fullscreen-telemetry" aria-label="全屏引擎信息">
+          <span>{{ diagnostics.backend }}</span><b>{{ diagnostics.fps || "—" }} FPS</b
+          ><span>PHYS {{ diagnostics.physicsMs.toFixed(2) }} MS</span
+          ><span>接触 {{ diagnostics.collisions }}</span>
+        </div>
         <div v-if="ready && !paused && diagnostics.cameraMode === 'cockpit'" class="look-controls">
           <button
             aria-label="向左观察"

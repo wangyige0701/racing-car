@@ -255,6 +255,14 @@ kbd {
   overflow: hidden;
   background: #9ab1b0;
 }
+.driving-panel:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  min-height: 0;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+}
 .viewport {
   position: absolute;
   inset: 0;
@@ -275,6 +283,29 @@ kbd {
     #06100d88 100%
   );
   pointer-events: none;
+}
+.fullscreen-telemetry {
+  position: absolute;
+  right: 24px;
+  bottom: 48px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #ffffff26;
+  border-radius: 3px;
+  background: #0a181dcc;
+  color: #b9c9b4;
+  font:
+    9px Consolas,
+    "Microsoft YaHei",
+    monospace;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+.fullscreen-telemetry b {
+  color: #d9f582;
+  font-weight: 400;
 }
 .scene-topline {
   position: absolute;
@@ -1284,6 +1315,11 @@ footer i {
     background: #10231cdd;
     color: #e5efcf;
     padding: 8px 14px;
+  }
+  .fullscreen-telemetry {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: 42px;
+    font-size: 8px;
   }
   .mobile-settings .volume-control {
     gap: 8px;

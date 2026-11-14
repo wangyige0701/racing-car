@@ -14,16 +14,16 @@ test("all tracks switch and render without stale canvases or GPU errors", async 
   await page.goto("/");
   await expect(page.getByTestId("speed")).toBeVisible();
   await page.locator(".quality-control select").selectOption("balanced");
+  await page.keyboard.press("c");
+  await expect(page.getByTestId("camera-mode")).toHaveText("驾驶舱");
   for (const definition of [...TRACKS.slice(1), TRACKS[0]]) {
     await page.getByLabel("选择赛道", { exact: true }).selectOption(definition.id);
     await expect(page.locator("h1")).toContainText(definition.name);
     await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
     await expect(page.locator("canvas")).toHaveCount(1);
     await expect(page.getByTestId("backend")).toHaveText("WebGPU");
-    await page.getByLabel("选择赛道", { exact: true }).blur();
-    await page.screenshot({ path: info.outputPath(`${definition.id}-chase.png`), scale: "css" });
-    await page.keyboard.press("c");
     await expect(page.getByTestId("camera-mode")).toHaveText("驾驶舱");
+    await page.getByLabel("选择赛道", { exact: true }).blur();
     await page.waitForTimeout(800);
     await page.screenshot({ path: info.outputPath(`${definition.id}-cockpit.png`), scale: "css" });
     await page.keyboard.down("w");
