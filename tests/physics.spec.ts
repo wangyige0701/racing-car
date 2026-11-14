@@ -5,7 +5,10 @@ import { Track } from "../src/track/Track";
 import { VehiclePhysics } from "../src/vehicle/VehiclePhysics";
 import { emptyInput } from "../src/vehicle/config";
 import type { DriverInput } from "../src/vehicle/config";
-import { VEHICLE } from "../src/vehicle/config";
+import { steeringLimit } from "../src/vehicle/config";
+import { TRACKS } from "../src/track/catalog";
+import RAPIER from "@dimforge/rapier3d-compat";
+import { COLLISION_GROUPS } from "../src/physics/collisionGroups";
 
 test("fixed simulation rate is independent of 30/60/144 Hz rendering", () => {
   for (const fps of [30, 60, 144]) {
@@ -79,6 +82,99 @@ test("continuous barriers stop a driven chassis crossing the road edge", async (
   }
 });
 
+test("四条赛道两侧贴栏停车时车轮仍有路肩支撑，底盘不下陷", async () => {
+  for (const definition of TRACKS) {
+    const track = new Track(definition.id);
+    const index = track.samples.reduce(
+      (best, s, i) => (s.y > track.samples[best].y ? i : best),
+      10,
+    );
+    const s = track.samples[index];
+    for (const side of [-1, 1]) {
+      const physics = await PhysicsWorld.create(track);
+      const vehicle = new VehiclePhysics(physics.world, track);
+      try {
+        vehicle.body.setTranslation(
+          { x: s.x + s.tz * 7.75 * side, y: s.y + 0.9, z: s.z - s.tx * 7.75 * side },
+          true,
+        );
+        vehicle.body.setRotation(track.pose(index).rotation, true);
+        vehicle.afterStep(0);
+        for (let frame = 0; frame < 240; frame++) {
+          vehicle.beforeStep(1 / 60, emptyInput());
+          physics.step(1 / 60);
+          vehicle.afterStep(1 / 60);
+        }
+        expect(vehicle.position.y - s.y).toBeGreaterThan(0.35);
+        expect(vehicle.groundedWheels).toBe(4);
+      } finally {
+        physics.dispose();
+      }
+    }
+  }
+});
+
+test("高差赛道两侧连续擦栏经过接缝后仍在路面上且可驶离", async () => {
+  for (const definition of TRACKS) {
+    const track = new Track(definition.id);
+    const index = track.samples.reduce(
+      (best, s, i) => (Math.abs(s.ty) > Math.abs(track.samples[best].ty) ? i : best),
+      10,
+    );
+    const s = track.samples[index];
+    for (const side of [-1, 1]) {
+      const physics = await PhysicsWorld.create(track);
+      const vehicle = new VehiclePhysics(physics.world, track);
+      try {
+        vehicle.body.setTranslation(
+          { x: s.x + s.tz * 7.75 * side, y: s.y + 0.62, z: s.z - s.tx * 7.75 * side },
+          true,
+        );
+        vehicle.body.setRotation(track.pose(index).rotation, true);
+        vehicle.body.setLinvel(
+          { x: s.tx * 20 + s.tz * 5 * side, y: s.ty * 20, z: s.tz * 20 - s.tx * 5 * side },
+          true,
+        );
+        vehicle.afterStep(0);
+        const start = vehicle.position.clone();
+        for (let frame = 0; frame < 120; frame++) {
+          vehicle.beforeStep(1 / 60, {
+            ...emptyInput(),
+            throttle: 0.3,
+            steer: frame < 20 ? 0 : side * 0.15,
+          });
+          physics.step(1 / 60);
+          vehicle.afterStep(1 / 60);
+          const ray = new RAPIER.Ray(
+            { x: vehicle.position.x, y: vehicle.position.y + 2, z: vehicle.position.z },
+            { x: 0, y: -1, z: 0 },
+          );
+          const hit = physics.world.castRay(
+            ray,
+            5,
+            true,
+            RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC,
+            COLLISION_GROUPS.suspension,
+          );
+          expect(hit, `${definition.id} ${side} 路面支撑丢失`).not.toBeNull();
+          const clearance = hit!.timeOfImpact - 2;
+          expect(clearance).toBeGreaterThan(0.25);
+          expect(clearance).toBeLessThan(1.25);
+          expect(1 - 2 * (vehicle.rotation.x ** 2 + vehicle.rotation.z ** 2)).toBeGreaterThan(0.8);
+          for (let wheel = 0; wheel < 4; wheel++) {
+            const support = vehicle.controller.wheelGroundObject(wheel);
+            if (support) expect(physics.barriers.has(support.handle)).toBe(false);
+          }
+        }
+        expect(physics.collisionCount).toBeGreaterThan(0);
+        expect(vehicle.position.distanceTo(start)).toBeGreaterThan(6);
+      } finally {
+        physics.dispose();
+      }
+    }
+  }
+});
+
 test("a driver using normalized controls can complete the closed track without crossing barriers", async () => {
   const { physics, vehicle, track, step } = await setup();
   try {
@@ -107,7 +203,7 @@ test("a driver using normalized controls can complete the closed track without c
         Math.cos(Math.atan2(dx, dz) - heading),
       );
       const angle = Math.atan((2 * 2.64 * Math.sin(error)) / Math.hypot(dx, dz));
-      const limit = VEHICLE.maxSteer / (1 + (Math.abs(vehicle.speed) / 15) ** 2);
+      const limit = steeringLimit(vehicle.speed);
       input.steer = -Math.max(-1, Math.min(1, angle / limit));
       input.throttle = Math.max(0, Math.min(1, (20 - vehicle.speed) * 0.4));
       input.brake = vehicle.speed > 22 ? 0.15 : 0;
@@ -205,6 +301,11 @@ test("barrier feedback scales with impact speed and expires after separation", a
     try {
       const s = track.samples[10];
       const yaw = Math.atan2(s.tx, s.tz) + Math.PI / 2;
+      // 从护栏前一米开始，避免松油阻力使低速车辆在接触前已经停下。
+      vehicle.body.setTranslation(
+        { x: s.x + s.tz * 6, y: vehicle.position.y, z: s.z - s.tx * 6 },
+        true,
+      );
       vehicle.body.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true);
       vehicle.body.setLinvel({ x: s.tz * speed, y: 0, z: -s.tx * speed }, true);
       vehicle.afterStep(0);
@@ -263,7 +364,7 @@ test("a moderate barrier impact dissipates roll energy without launching the cha
   try {
     const s = track.samples[10];
     vehicle.body.setTranslation(
-      { x: s.x + s.tz * 7.25, y: vehicle.position.y, z: s.z - s.tx * 7.25 },
+      { x: s.x + s.tz * 7.75, y: vehicle.position.y, z: s.z - s.tx * 7.75 },
       true,
     );
     vehicle.body.setLinvel({ x: s.tx * 14 + s.tz * 5, y: 0, z: s.tz * 14 - s.tx * 5 }, true);

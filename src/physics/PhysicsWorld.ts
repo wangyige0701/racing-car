@@ -1,6 +1,7 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import type { Track } from "../track/Track";
 import { Vector3 } from "three/webgpu";
+import { COLLISION_GROUPS } from "./collisionGroups";
 
 let initialization: Promise<void> | undefined;
 
@@ -31,19 +32,28 @@ export class PhysicsWorld {
   private constructor(track: Track) {
     this.world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
     this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(800, 0.5, 800).setTranslation(0, -0.55, 0).setFriction(0.65),
+      RAPIER.ColliderDesc.cuboid(800, 0.5, 800)
+        .setTranslation(0, -0.55, 0)
+        .setFriction(0.65)
+        .setCollisionGroups(COLLISION_GROUPS.road),
     );
     this.world.createCollider(
-      RAPIER.ColliderDesc.trimesh(track.vertices, track.indices).setFriction(1),
+      RAPIER.ColliderDesc.trimesh(
+        track.surfaceVertices,
+        track.indices,
+        RAPIER.TriMeshFlags.FIX_INTERNAL_EDGES,
+      )
+        .setFriction(1)
+        .setCollisionGroups(COLLISION_GROUPS.road),
     );
     for (const segment of track.barrierSegments()) {
       const collider = this.world.createCollider(
-        // 降低物理包络高度可缩短侧向冲量的力臂，
-        // 同时仍覆盖底盘在完整行程中的范围。
-        RAPIER.ColliderDesc.roundCuboid(0.3, 0.45, segment.length / 2, 0.1)
-          .setTranslation(segment.x, segment.y + 0.45, segment.z)
+        // 覆盖装饰护栏高度，并延伸到路面下，避免底盘从包络上下缘卡入。
+        RAPIER.ColliderDesc.roundCuboid(0.3, 0.65, segment.length / 2, 0.1)
+          .setTranslation(segment.x, segment.y + 0.55, segment.z)
           .setRotation(segment.rotation)
           .setFriction(0.02)
+          .setCollisionGroups(COLLISION_GROUPS.barrier)
           .setRestitution(0),
       );
       this.barriers.add(collider.handle);

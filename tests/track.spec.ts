@@ -6,7 +6,7 @@ import { TRACKS } from "../src/track/catalog";
 import { LapTimer } from "../src/track/LapTimer";
 import { PhysicsWorld } from "../src/physics/PhysicsWorld";
 import { VehiclePhysics } from "../src/vehicle/VehiclePhysics";
-import { emptyInput, VEHICLE } from "../src/vehicle/config";
+import { emptyInput, steeringLimit } from "../src/vehicle/config";
 
 function cross(timer: LapTimer, track: Track, gate: number, reverse = false, grounded = 4) {
   const s = track.samples[timer.gates[gate]];
@@ -142,7 +142,7 @@ for (const definition of TRACKS) {
           Math.cos(Math.atan2(dx, dz) - heading),
         );
         const angle = Math.atan((2 * 2.64 * Math.sin(error)) / Math.hypot(dx, dz));
-        const limit = VEHICLE.maxSteer / (1 + (Math.abs(vehicle.speed) / 15) ** 2);
+        const limit = steeringLimit(vehicle.speed);
         input.steer = -Math.max(-1, Math.min(1, angle / limit));
         // 预判急弯；蜿蜒赛道需要在入弯前减速。
         let curvature = 0;

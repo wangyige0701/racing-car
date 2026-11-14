@@ -105,6 +105,17 @@ export class DrivingScene {
     ground.receiveShadow = true;
 
     const roadMaterial = roadSurface(assets);
+    // 同一加宽表面提供路肩支撑与外观；轻微下移避免与主路面深度重叠。
+    const shoulderGeometry = new BufferGeometry();
+    shoulderGeometry.setAttribute("position", new BufferAttribute(track.surfaceVertices, 3));
+    shoulderGeometry.setIndex(new BufferAttribute(track.indices, 1));
+    shoulderGeometry.computeVertexNormals();
+    const shoulder = this.mesh(
+      shoulderGeometry,
+      new MeshStandardNodeMaterial({ color: "#77796c", roughness: 1 }),
+    );
+    shoulder.position.y = -0.02;
+    shoulder.receiveShadow = true;
     const roadGeometry = new BufferGeometry();
     roadGeometry.setAttribute("position", new BufferAttribute(track.vertices, 3));
     roadGeometry.setIndex(new BufferAttribute(track.indices, 1));

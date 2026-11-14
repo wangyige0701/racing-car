@@ -45,7 +45,8 @@ export class DriftController {
       this.pivoting = true;
     const available = (speed > config.minSpeed || this.pivoting) && grounded >= 3;
     if (pressed && !this.wasPressed && available) {
-      if (this.engaged || this.active) this.recoveryTime = 1.2;
+      // 普通紧弯的自然侧滑不算一次手刹起漂，只有已有辅助才允许二次手刹收车。
+      if (this.engaged || (this.active && this.control > 0.01)) this.recoveryTime = 1.2;
       else this.engaged = true;
     }
     this.wasPressed = pressed;
@@ -64,8 +65,12 @@ export class DriftController {
     this.effectiveHandbrake = this.recovering
       ? 0
       : handbrake * (poweredHold ? config.heldHandbrakeBrakeFactor : 1);
+    // 低速紧弯也可能达到侧滑检测阈值，不能因此自动接管普通转向。
     const targetControl =
-      available && (this.engaged || this.active || this.recovering || this.pivoting) ? 1 : 0;
+      available &&
+      (this.engaged || (this.active && this.control > 0.01) || this.recovering || this.pivoting)
+        ? 1
+        : 0;
     this.control += (targetControl - this.control) * (1 - Math.exp(-8 * dt));
     const countersteer = steer * this.slipAngle > 0;
     const powerSlip = this.engaged && !pressed ? 0.35 + throttle * 0.2 : 0;

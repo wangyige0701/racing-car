@@ -33,6 +33,8 @@ export class Track {
   readonly startIndex = 17;
   readonly mapViewBox: string;
   readonly vertices: Float32Array;
+  readonly surfaceVertices: Float32Array;
+  readonly shoulderWidth = 1.6;
   readonly indices: Uint32Array;
   readonly corners: number[];
 
@@ -84,6 +86,7 @@ export class Track {
       height = Math.max(...mapSamples.map((point) => point.y)) - minY + 30;
     this.mapViewBox = `${minX} ${minY} ${width} ${height}`;
     this.vertices = new Float32Array(this.samples.length * 6);
+    this.surfaceVertices = new Float32Array(this.samples.length * 6);
     this.indices = new Uint32Array(this.samples.length * 6);
     this.samples.forEach((s, i) => {
       const next = (i + 1) % this.samples.length;
@@ -99,6 +102,18 @@ export class Track {
         i * 6,
       );
       this.indices.set([i * 2, next * 2, i * 2 + 1, i * 2 + 1, next * 2, next * 2 + 1], i * 6);
+      const surfaceHalfWidth = this.width / 2 + this.shoulderWidth;
+      this.surfaceVertices.set(
+        [
+          s.x - s.tz * surfaceHalfWidth,
+          s.y,
+          s.z + s.tx * surfaceHalfWidth,
+          s.x + s.tz * surfaceHalfWidth,
+          s.y,
+          s.z - s.tx * surfaceHalfWidth,
+        ],
+        i * 6,
+      );
     });
   }
 

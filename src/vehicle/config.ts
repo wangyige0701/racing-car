@@ -23,6 +23,7 @@ export const VEHICLE = {
   },
   tireFriction: 2.3,
   sideFriction: 1.1,
+  corneringGripBoost: 0.15,
   maxTorque: 410,
   gears: [3.1, 2.1, 1.5, 1.15, 0.9],
   gearSpeeds: [0, 14, 25, 37, 49],
@@ -32,6 +33,8 @@ export const VEHICLE = {
   reverseSpeed: 9,
   maxBrakeForce: 44000,
   handbrakeForce: 9500,
+  rollingResistance: 180,
+  engineBrakeForce: 1600,
   groundYawDamping: 1.7,
   uprightStiffness: 14000,
   uprightDamping: 3200,
@@ -50,6 +53,8 @@ export const VEHICLE = {
     maxYawTorque: 10000,
   },
   drift: {
+    maxSteer: 0.52,
+    steeringSpeedScale: 15,
     countersteerAssist: 0.85,
     driverSteerRetention: 0.3,
     heldDriverSteerRetention: 0.65,
@@ -75,11 +80,17 @@ export const VEHICLE = {
     enterAngle: (9 * Math.PI) / 180,
     exitAngle: (5 * Math.PI) / 180,
   },
-  maxSteer: 0.52,
+  maxSteer: 0.62,
+  steeringSpeedScale: 18,
   steeringRate: 4.5,
   throttleRate: 7,
   directionDelay: 0.25,
 } as const;
+
+/** 普通转向上限随车速平滑减小；测试驾驶器也复用同一映射。 */
+export function steeringLimit(speed: number): number {
+  return VEHICLE.maxSteer / (1 + (Math.abs(speed) / VEHICLE.steeringSpeedScale) ** 2);
+}
 export interface DriverInput {
   throttle: number;
   brake: number;

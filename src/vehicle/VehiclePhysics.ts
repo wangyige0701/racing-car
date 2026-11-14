@@ -1,6 +1,7 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import { Quaternion, Vector3 } from "three/webgpu";
-import { VEHICLE } from "./config";
+import { VEHICLE, steeringLimit } from "./config";
+import { COLLISION_GROUPS } from "../physics/collisionGroups";
 import { DriftController } from "./DriftController";
 import type { DriverInput } from "./config";
 import type { Track } from "../track/Track";
@@ -169,24 +170,32 @@ export class VehiclePhysics {
     const slide = Math.min(1, Math.abs(this.drift.slipAngle) / 0.4);
     const steerLimit = Math.min(
       VEHICLE.maxSteer,
-      (VEHICLE.maxSteer / (1 + (Math.abs(this.speed) / 15) ** 2)) *
+      (steeringLimit(this.speed) * (1 - this.drift.control) +
+        (VEHICLE.drift.maxSteer /
+          (1 + (Math.abs(this.speed) / VEHICLE.drift.steeringSpeedScale) ** 2)) *
+          this.drift.control) *
         (1 + (countersteer ? VEHICLE.countersteerReserve * slide : 0)),
     );
     const driftSteerLimit =
-      this.drift.control && heldPoweredDrift
-        ? Math.max(steerLimit, VEHICLE.maxSteer * VEHICLE.drift.driftSteerLimitFloor)
-        : steerLimit;
+      steerLimit +
+      (heldPoweredDrift
+        ? (Math.max(steerLimit, VEHICLE.drift.maxSteer * VEHICLE.drift.driftSteerLimitFloor) -
+            steerLimit) *
+          this.drift.control
+        : 0);
     // 侧滑时保留大部分驾驶员转向权限，再让前轴向测得的速度方向对齐。
     // 这是常见的街机漂移模型：转向选择弧线，速度对齐提供反打，
     // 而不会取代玩家输入。
     const driverSteer =
       -Math.max(-1, Math.min(1, input.steer)) *
       driftSteerLimit *
-      (this.drift.control
-        ? heldPoweredDrift
-          ? VEHICLE.drift.heldDriverSteerRetention
-          : VEHICLE.drift.driverSteerRetention
-        : 1);
+      // 辅助权重指数衰减不会精确归零，不能按布尔值判断，否则回正后仍永久削弱转向。
+      (1 -
+        this.drift.control *
+          (1 -
+            (heldPoweredDrift
+              ? VEHICLE.drift.heldDriverSteerRetention
+              : VEHICLE.drift.driverSteerRetention)));
     const rawCountersteer =
       this.drift.slipAngle * this.drift.control * VEHICLE.drift.countersteerAssist;
     const countersteerAssist = heldPoweredDrift
@@ -199,7 +208,7 @@ export class VehiclePhysics {
     // 速度对齐项可以缓和侧滑，但不得反转持续的转向指令；方向仍由驾驶员决定。
     const minimumDriverSteer = driverSteer * VEHICLE.drift.driverSteerMinimum;
     const targetSteer = handbrakePivot
-      ? -Math.max(-1, Math.min(1, input.steer)) * VEHICLE.maxSteer
+      ? -Math.max(-1, Math.min(1, input.steer)) * VEHICLE.drift.maxSteer
       : Math.max(
           -VEHICLE.maxSteer,
           Math.min(
@@ -263,10 +272,19 @@ export class VehiclePhysics {
       (1 + this.launchBoost) *
       (this.burnout ? Math.max(0, 1 - (movement / VEHICLE.burnout.maxCreepSpeed) ** 2) : 1) *
       this.direction;
+    const engineBrake =
+      drive === 0 && this.brake === 0 && !this.burnout
+        ? VEHICLE.engineBrakeForce *
+          (1 - this.throttle) *
+          this.driveCoupling *
+          (1 - this.drift.control * 0.65)
+        : 0;
     for (let i = 0; i < 4; i++) {
       this.controller.setWheelSteering(i, i < 2 ? this.steer : 0);
       const rear = i >= 2;
-      const grip = rear ? this.drift.rearGrip : 1;
+      const grip =
+        (rear ? this.drift.rearGrip : 1) *
+        (1 + VEHICLE.corneringGripBoost * (1 - this.drift.control));
       const serviceBrake = this.burnout
         ? rear
           ? 0
@@ -288,10 +306,24 @@ export class VehiclePhysics {
     this.body.linvel(this.velocity);
     const velocityMagnitude = this.velocity.length();
     this.force.copy(this.velocity).multiplyScalar(-0.45 * velocityMagnitude);
-    if (this.groundedWheels >= 2) this.force.y -= Math.min(3500, speed * speed * 1.8);
+    if (this.groundedWheels >= 2) {
+      this.force.y -= Math.min(3500, speed * speed * 1.8);
+      // Rapier 的车轮驱动力与制动冲量互斥；衰减中的油门非零时，轮刹不能承担滑行阻力。
+      // 因此用接地纵向力模拟滚阻和发动机制动，低速平滑收敛，不直接修改速度。
+      this.forward.set(0, 0, 1).applyQuaternion(this.rotation);
+      const longitudinal = this.velocity.dot(this.forward);
+      const resistance =
+        (VEHICLE.rollingResistance * (1 - this.drift.control * 0.75) + engineBrake) *
+        Math.min(1, Math.abs(longitudinal));
+      this.force.addScaledVector(this.forward, -Math.sign(longitudinal) * resistance);
+    }
     this.body.addForce(this.force, false);
     if (this.throttle > 0.01 || this.brake > 0 || this.handbrake > 0) this.body.wakeUp();
-    this.controller.updateVehicle(dt, RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC);
+    this.controller.updateVehicle(
+      dt,
+      RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC,
+      COLLISION_GROUPS.suspension,
+    );
     // 等大反向力耦合每根车轴的悬挂，且不会额外产生升力。
     // 腾空的车轴不施加稳定力。
     this.up.set(0, 1, 0).applyQuaternion(this.rotation);

@@ -3,7 +3,8 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { Vector3 } from "three/webgpu";
 import { Track } from "../src/track/Track";
 import { VehiclePhysics } from "../src/vehicle/VehiclePhysics";
-import { emptyInput, VEHICLE } from "../src/vehicle/config";
+import { DriftController } from "../src/vehicle/DriftController";
+import { emptyInput, VEHICLE, steeringLimit } from "../src/vehicle/config";
 import type { DriverInput } from "../src/vehicle/config";
 
 // 开阔平地用于隔离轮胎行为，排除护栏碰撞和赛道曲率的影响。
@@ -171,6 +172,49 @@ test("service brake sheds speed quickly before reverse can engage", async () => 
   }
 });
 
+test("松油滑行在三秒内明显减速，低速阻力不使车辆反向", async () => {
+  for (const kmh of [60, 100]) {
+    const { world, vehicle, step } = await pad();
+    try {
+      for (let i = 0; i < 900 && vehicle.speed < kmh / 3.6; i++) step(1, { throttle: 1 });
+      const entry = vehicle.speed * 3.6;
+      step(180);
+      const drop = entry - vehicle.speed * 3.6;
+      expect(drop).toBeGreaterThan(kmh === 60 ? 15 : 20);
+      expect(drop).toBeLessThan(30);
+      expect(vehicle.speed).toBeGreaterThan(0);
+      step(1800);
+      expect(Math.abs(vehicle.speed)).toBeLessThan(0.3);
+    } finally {
+      world.free();
+    }
+  }
+});
+
+test("低速常速和高速转弯都具有足够曲率且保持车身稳定", async () => {
+  for (const kmh of [20, 60, 100]) {
+    const { world, vehicle, step } = await pad();
+    try {
+      const forward = new Vector3(0, 0, kmh / 3.6).applyQuaternion(vehicle.rotation);
+      vehicle.body.setLinvel(forward, true);
+      vehicle.afterStep(0);
+      for (let i = 0; i < 180; i++) {
+        step(1, {
+          throttle: Math.max(0, Math.min(1, (kmh / 3.6 - vehicle.speed) * 0.5 + 0.12)),
+          steer: 0.8,
+        });
+        expect(new Vector3(0, 1, 0).applyQuaternion(vehicle.rotation).y).toBeGreaterThan(0.85);
+      }
+      const radius = Math.abs(vehicle.speed / vehicle.body.angvel().y);
+      expect(radius).toBeLessThan(kmh === 20 ? 8 : kmh === 60 ? 15.5 : 35);
+      expect(vehicle.speed * 3.6).toBeGreaterThan(kmh * 0.9);
+      expect(vehicle.drift.control).toBe(0);
+    } finally {
+      world.free();
+    }
+  }
+});
+
 test("行驶中油门不放大轻刹力度，轻刹比满刹保留更多速度", async () => {
   const speeds: number[] = [];
   for (const brake of [0.2, 1]) {
@@ -189,6 +233,35 @@ test("行驶中油门不放大轻刹力度，轻刹比满刹保留更多速度",
     }
   }
   expect(speeds[0] - speeds[1]).toBeGreaterThan(2);
+});
+
+test("普通紧弯侧滑后首次手刹仍然起漂，再次手刹才恢复抓地", () => {
+  const drift = new DriftController();
+  drift.measure(1 / 60, 10, 2, 4);
+  expect(drift.active).toBe(true);
+  drift.updateGrip(1 / 60, 0, 1, -0.4, 10, 0, 4, false, false);
+  expect(drift.control).toBe(0);
+  drift.updateGrip(1 / 60, 1, 1, -0.4, 10, 0, 4, false, false);
+  expect(drift.recovering).toBe(false);
+  expect(drift.control).toBeGreaterThan(0);
+  expect(drift.rearGrip).toBeLessThan(1);
+  drift.updateGrip(1 / 60, 0, 1, -0.4, 10, 0, 4, false, false);
+  drift.updateGrip(1 / 60, 1, 1, -0.4, 10, 0, 4, false, false);
+  expect(drift.recovering).toBe(true);
+});
+
+test("漂移辅助衰减后恢复完整普通转向，不残留三成输入限制", async () => {
+  const { world, vehicle, step } = await pad();
+  try {
+    step(180, { throttle: 1 });
+    step(40, { throttle: 0.6, steer: 0.6, handbrake: 1 });
+    step(480, { throttle: 0.35 });
+    expect(vehicle.drift.control).toBeLessThan(0.01);
+    step(60, { throttle: 0.35, steer: 0.35 });
+    expect(Math.abs(vehicle.steer) / steeringLimit(vehicle.speed)).toBeGreaterThan(0.3);
+  } finally {
+    world.free();
+  }
 });
 
 test("sideways motion cannot select reverse before the chassis has stopped", async () => {

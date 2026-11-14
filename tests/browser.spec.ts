@@ -293,11 +293,12 @@ test("low-speed throttle and brake trigger burnout before a charged launch", asy
   await page.keyboard.down("s");
   await page.keyboard.down("d");
   await expect(page.getByTestId("drift-state")).toContainText("烧胎蓄力");
+  // 起步速度在回正后验证，避免持续满舵在达到目标速度前驶向护栏。
+  await page.keyboard.up("d");
   await page.keyboard.up("s");
   await expect
     .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
     .toBeGreaterThan(20);
-  await page.keyboard.up("d");
   await page.keyboard.up("w");
   expect(errors).toEqual([]);
 });
