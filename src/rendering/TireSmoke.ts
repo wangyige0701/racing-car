@@ -54,7 +54,10 @@ export class TireSmoke {
 
   update(vehicle: VehiclePhysics, camera: Camera, dt: number): void {
     dt = Math.min(0.05, Math.max(0, dt));
-    const active = vehicle.drift.active || (vehicle.handbrake > 0.5 && Math.abs(vehicle.speed) > 6);
+    const active =
+      vehicle.burnout ||
+      vehicle.drift.active ||
+      (vehicle.handbrake > 0.5 && Math.abs(vehicle.speed) > 6);
     if (active) {
       this.accumulator += dt * 40 * this.emissionScale;
       while (this.accumulator >= 1) {

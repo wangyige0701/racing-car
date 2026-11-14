@@ -25,6 +25,9 @@ export class VehiclePhysics {
   distance = 0;
   groundedWheels = 0;
   handbrake = 0;
+  burnout = false;
+  launchCharge = 0;
+  launchBoost = 0;
   readonly drift = new DriftController();
   readonly wheelAngles = [0, 0, 0, 0];
   readonly previousWheelAngles = [0, 0, 0, 0];
@@ -107,12 +110,20 @@ export class VehiclePhysics {
     const accelerator = Math.max(0, Math.min(1, input.throttle));
     const pedal = Math.max(0, Math.min(1, input.brake));
     this.handbrake = Math.max(0, Math.min(1, input.handbrake));
+    this.body.linvel(this.velocity);
+    const movement = this.velocity.length();
     const both = accelerator > 0.05 && pedal > 0.05;
     const desired = accelerator > 0.05 ? 1 : pedal > 0.05 ? -1 : 0;
     let drive = 0;
     this.brake = 0;
+    this.burnout =
+      both &&
+      this.direction === 1 &&
+      movement < VEHICLE.burnout.engageSpeed &&
+      this.groundedWheels >= 3;
     if (both) {
       this.brake = Math.max(accelerator, pedal);
+      if (this.burnout) drive = accelerator;
       this.directionWait = 0;
     } else if (desired !== 0) {
       if (desired !== this.direction) {
@@ -128,9 +139,9 @@ export class VehiclePhysics {
       } else this.directionWait = 0;
       if (desired === this.direction) drive = desired === 1 ? accelerator : pedal;
     } else this.directionWait = 0;
-    const targetThrottle = this.brake > 0 ? 0 : drive;
+    const targetThrottle = drive;
     this.throttle += (targetThrottle - this.throttle) * (1 - Math.exp(-VEHICLE.throttleRate * dt));
-    if (this.brake > 0) this.throttle = 0;
+    if (this.brake > 0 && !this.burnout) this.throttle = 0;
     this.drift.updateGrip(
       dt,
       this.handbrake,
@@ -139,6 +150,7 @@ export class VehiclePhysics {
       this.speed,
       this.brake,
       this.groundedWheels,
+      this.burnout,
     );
     const handbrake = this.drift.effectiveHandbrake;
     const countersteer =
@@ -151,13 +163,17 @@ export class VehiclePhysics {
       (VEHICLE.maxSteer / (1 + (Math.abs(this.speed) / 15) ** 2)) *
         (1 + (countersteer ? VEHICLE.countersteerReserve * slide : 0)),
     );
-    // Align the front tires with the actual contact velocity during a slide,
-    // leaving driver steering as an offset that still changes the travel path.
+    // Keep most of the driver's steering authority during a slide, then align
+    // the front axle toward the measured velocity. This is the usual arcade
+    // drift model: steering chooses the arc while velocity alignment provides
+    // countersteer instead of replacing the player's input.
     const targetSteer = Math.max(
       -VEHICLE.maxSteer,
       Math.min(
         VEHICLE.maxSteer,
-        -Math.max(-1, Math.min(1, input.steer)) * steerLimit * (1 - this.drift.control * 0.7) +
+        -Math.max(-1, Math.min(1, input.steer)) *
+          steerLimit *
+          (1 - this.drift.control * (1 - VEHICLE.drift.driverSteerRetention)) +
           this.drift.slipAngle * this.drift.control * VEHICLE.drift.countersteerAssist,
       ),
     );
@@ -165,9 +181,11 @@ export class VehiclePhysics {
       (targetSteer - this.steer) *
       (1 - Math.exp(-(countersteer ? VEHICLE.countersteerRate : VEHICLE.steeringRate) * dt));
     const speed = Math.abs(this.speed);
-    // Handbrake cuts drive immediately; clutch-like recovery prevents a torque step on release.
+    // A held handbrake softens rather than removes drive once the car is already
+    // sliding, so a long drift can still be powered out.
+    const clutchCut = handbrake * (this.drift.active ? 0.4 : 1);
     this.driveCoupling = Math.min(
-      1 - handbrake,
+      1 - clutchCut,
       this.driveCoupling +
         (1 - this.driveCoupling) * (1 - Math.exp(-VEHICLE.driveRecoveryRate * dt)),
     );
@@ -184,6 +202,22 @@ export class VehiclePhysics {
         (speed / (2 * Math.PI * VEHICLE.wheelRadius)) * 60 * ratio * VEHICLE.finalDrive,
       ),
     );
+    if (this.burnout) this.rpm = Math.max(this.rpm, 2600 + this.launchCharge * accelerator * 4200);
+    if (this.burnout) {
+      this.launchCharge = Math.min(1, this.launchCharge + VEHICLE.burnout.chargeRate * dt);
+      this.launchBoost = 0;
+    } else {
+      const launching =
+        pedal < 0.05 &&
+        accelerator > 0.05 &&
+        this.direction === 1 &&
+        speed < VEHICLE.burnout.maxLaunchSpeed;
+      this.launchBoost = launching ? this.launchCharge * VEHICLE.burnout.launchForce : 0;
+      this.launchCharge = Math.max(
+        0,
+        this.launchCharge - dt * (launching ? VEHICLE.burnout.releaseRate : 3),
+      );
+    }
     const torque =
       VEHICLE.maxTorque * (0.68 + 0.32 * Math.sin(Math.min(1, this.rpm / 7400) * Math.PI));
     const speedLimit = this.direction === 1 ? VEHICLE.maxSpeed : VEHICLE.reverseSpeed;
@@ -192,18 +226,25 @@ export class VehiclePhysics {
       ((torque * ratio * VEHICLE.finalDrive * VEHICLE.efficiency) / VEHICLE.wheelRadius) *
       this.throttle *
       taper *
+      (1 + this.launchBoost) *
+      (this.burnout ? Math.max(0, 1 - (movement / VEHICLE.burnout.maxCreepSpeed) ** 2) : 1) *
       this.direction;
     for (let i = 0; i < 4; i++) {
       this.controller.setWheelSteering(i, i < 2 ? this.steer : 0);
       const rear = i >= 2;
       const grip = rear ? this.drift.rearGrip : 1;
+      const serviceBrake = this.burnout
+        ? rear
+          ? 0
+          : (this.brake * VEHICLE.maxBrakeForce) / 2
+        : (this.brake * VEHICLE.maxBrakeForce) / 4;
       this.controller.setWheelFrictionSlip(i, VEHICLE.tireFriction * grip);
       this.controller.setWheelSideFrictionStiffness(i, VEHICLE.sideFriction * grip);
       this.controller.setWheelEngineForce(i, rear ? (driveForce * this.driveCoupling) / 2 : 0);
       this.controller.setWheelBrake(
         i,
         dt *
-          ((this.brake * VEHICLE.maxBrakeForce) / 4 +
+          (serviceBrake +
             (rear ? (handbrake * VEHICLE.handbrakeForce) / 2 : 0) +
             (this.drift.recovering ? this.handbrake * VEHICLE.maxBrakeForce * 0.12 : 0)),
       );
@@ -222,23 +263,25 @@ export class VehiclePhysics {
     this.up.set(0, 1, 0).applyQuaternion(this.rotation);
     let contacts = 0;
     for (let i = 0; i < 4; i++) if (this.controller.wheelIsInContact(i)) contacts++;
-    if (contacts >= 3 && speed > VEHICLE.drift.minSpeed) {
+    const stationarySpin = this.burnout && Math.abs(input.steer) > 0.12;
+    if (contacts >= 3 && (speed > VEHICLE.drift.minSpeed || stationarySpin)) {
       this.body.angvel(this.angularVelocity);
       const yawRate = this.angularVelocity.dot(this.up);
-      const control = this.speed > VEHICLE.drift.minSpeed ? this.drift.control : 0;
+      const control = stationarySpin ? 1 : this.drift.control;
       const targetSlip = this.drift.recovering
         ? 0
         : input.steer * VEHICLE.drift.targetSlip * (0.5 + this.throttle * 0.5) +
           handbrake * input.steer * 0.25;
-      const requestedYaw = -input.steer * Math.min(0.65, 9 / Math.max(8, speed));
-      const targetYaw =
-        requestedYaw + (this.drift.slipAngle - targetSlip) * VEHICLE.drift.slipRecovery;
+      const requestedYaw = -input.steer * Math.min(0.85, 12 / Math.max(7, speed));
+      const targetYaw = stationarySpin
+        ? -input.steer * VEHICLE.burnout.yawRate
+        : requestedYaw + (this.drift.slipAngle - targetSlip) * VEHICLE.drift.slipRecovery;
+      const maxTorque = stationarySpin
+        ? VEHICLE.burnout.maxYawTorque
+        : VEHICLE.drift.maxAssistTorque;
       const correction = Math.max(
-        -VEHICLE.drift.maxAssistTorque,
-        Math.min(
-          VEHICLE.drift.maxAssistTorque,
-          (targetYaw - yawRate) * VEHICLE.inertia.y * VEHICLE.drift.yawResponse,
-        ),
+        -maxTorque,
+        Math.min(maxTorque, (targetYaw - yawRate) * VEHICLE.inertia.y * VEHICLE.drift.yawResponse),
       );
       this.force
         .copy(this.up)
@@ -337,6 +380,8 @@ export class VehiclePhysics {
     this.rpm = 950;
     this.groundedWheels = 0;
     this.handbrake = 0;
+    this.burnout = false;
+    this.launchCharge = this.launchBoost = 0;
     this.drift.reset();
     for (let i = 0; i < 4; i++) {
       this.wheelAngles[i] = this.previousWheelAngles[i] = 0;

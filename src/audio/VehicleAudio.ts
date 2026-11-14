@@ -150,14 +150,16 @@ export class VehicleAudio {
       0.1,
     );
     const tire =
-      vehicle.groundedWheels >= 2 && Math.abs(vehicle.speed) > 3
-        ? Math.min(
-            1,
-            Math.abs(vehicle.drift.slipAngle) * 1.7 +
-              vehicle.handbrake * 0.3 +
-              vehicle.brake * 0.15,
-          )
-        : 0;
+      vehicle.burnout && vehicle.groundedWheels >= 2
+        ? 0.72
+        : vehicle.groundedWheels >= 2 && Math.abs(vehicle.speed) > 3
+          ? Math.min(
+              1,
+              Math.abs(vehicle.drift.slipAngle) * 1.7 +
+                vehicle.handbrake * 0.3 +
+                vehicle.brake * 0.15,
+            )
+          : 0;
     this.tireGain!.gain.setTargetAtTime(tire * 0.16, now, 0.06);
     this.windGain!.gain.setTargetAtTime(
       Math.min(0.1, Math.abs(vehicle.speed) ** 2 / 25000) * (cockpit ? 0.35 : 1),

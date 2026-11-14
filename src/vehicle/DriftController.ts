@@ -22,8 +22,18 @@ export class DriftController {
     speed: number,
     brake: number,
     grounded: number,
+    burnout: boolean,
   ): void {
     const config = VEHICLE.drift;
+    if (burnout) {
+      this.engaged = this.recovering = false;
+      this.recoveryTime = 0;
+      this.effectiveHandbrake = 0;
+      this.control += (1 - this.control) * (1 - Math.exp(-config.engageRate * dt));
+      this.rearGrip +=
+        (VEHICLE.burnout.rearGrip - this.rearGrip) * (1 - Math.exp(-config.engageRate * dt));
+      return;
+    }
     const pressed = handbrake > 0.2;
     const available = speed > config.minSpeed && grounded >= 3;
     if (pressed && !this.wasPressed && available) {

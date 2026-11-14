@@ -84,6 +84,39 @@ test("handbrake alone brakes without reverse or false stationary drift; reset cl
   }
 });
 
+test("throttle plus service brake spins the driven wheels and releases into a charged launch", async () => {
+  const { world, vehicle, step } = await pad();
+  try {
+    const start = vehicle.rotation.clone();
+    step(90, { throttle: 1, brake: 1, steer: 0.7 });
+    expect(vehicle.burnout).toBe(true);
+    expect(vehicle.launchCharge).toBeGreaterThan(0.7);
+    expect(vehicle.rpm).toBeGreaterThan(5000);
+    expect(Math.abs(vehicle.speed)).toBeLessThan(3);
+    expect(start.angleTo(vehicle.rotation)).toBeGreaterThan(0.1);
+    step(45, { throttle: 1, steer: 0.7 });
+    expect(vehicle.burnout).toBe(false);
+    expect(vehicle.speed).toBeGreaterThan(7);
+    expect(vehicle.launchCharge).toBeLessThan(0.1);
+    expect(vehicle.groundedWheels).toBe(4);
+  } finally {
+    world.free();
+  }
+});
+
+test("service brake sheds speed quickly before reverse can engage", async () => {
+  const { world, vehicle, step } = await pad();
+  try {
+    step(180, { throttle: 1 });
+    const entry = vehicle.speed;
+    step(30, { brake: 1 });
+    expect(vehicle.speed).toBeLessThan(entry * 0.35);
+    expect(vehicle.gear).toBeGreaterThan(0);
+  } finally {
+    world.free();
+  }
+});
+
 test("sideways motion cannot select reverse before the chassis has stopped", async () => {
   const { world, vehicle, step } = await pad();
   try {

@@ -48,6 +48,8 @@ export interface Diagnostics {
   heading: number;
   inputSource: string;
   handbrake: number;
+  burnout: boolean;
+  launchCharge: number;
   rearGrip: number;
   slipAngle: number;
   drifting: boolean;
@@ -108,6 +110,8 @@ export function initialDiagnostics(): Diagnostics {
     heading: 0,
     inputSource: "键盘",
     handbrake: 0,
+    burnout: false,
+    launchCharge: 0,
     rearGrip: 1,
     slipAngle: 0,
     drifting: false,

@@ -379,6 +379,8 @@ export class GameApplication {
         collisionRecent: (this.physics?.impactAge ?? 10) < 2,
         inputSource: this.input?.source ?? "键盘",
         handbrake: v.handbrake,
+        burnout: v.burnout,
+        launchCharge: v.launchCharge,
         rearGrip: v.drift.rearGrip,
         slipAngle: (v.drift.slipAngle * 180) / Math.PI,
         drifting: v.drift.active,

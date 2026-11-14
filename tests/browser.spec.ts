@@ -188,6 +188,27 @@ test("real WebGPU driving, pause/reset and responsive resize work", async ({ pag
   expect(errors).toEqual([]);
 });
 
+test("low-speed throttle and brake trigger burnout before a charged launch", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto("/");
+  await expect(page.getByTestId("speed")).toHaveAttribute("data-speed", "0.00");
+  await page.keyboard.down("w");
+  await page.keyboard.down("s");
+  await page.keyboard.down("d");
+  await expect(page.getByTestId("drift-state")).toContainText("烧胎蓄力");
+  await page.keyboard.up("s");
+  await expect
+    .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
+    .toBeGreaterThan(20);
+  await page.keyboard.up("d");
+  await page.keyboard.up("w");
+  expect(errors).toEqual([]);
+});
+
 test("fullscreen keeps diagnostic telemetry over the running WebGPU scene", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
