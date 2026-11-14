@@ -275,6 +275,8 @@ test("fullscreen keeps diagnostic telemetry over the running WebGPU scene", asyn
     .toBe(true);
   await page.keyboard.press("c");
   await expect(page.getByTestId("camera-mode")).toHaveText("驾驶舱");
+  await expect(page.locator(".driving-panel")).toHaveClass(/cockpit-view/);
+  await expect(page.locator(".cockpit-view .track-map")).toHaveCSS("transform", /matrix3d/);
   const speedometer = page.locator(".speedometer");
   const [telemetryBox, speedometerBox] = await Promise.all([
     telemetry.boundingBox(),

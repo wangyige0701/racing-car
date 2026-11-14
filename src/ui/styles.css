@@ -440,6 +440,47 @@ kbd {
   font-weight: 400;
   color: #cbdab9;
 }
+.cockpit-view .track-map {
+  left: 30px;
+  bottom: 80px;
+  width: 164px;
+  padding: 10px 12px 8px;
+  border-color: #d9f58266;
+  background: linear-gradient(145deg, #173a2a82 0%, #07150d52 100%);
+  box-shadow:
+    inset 0 0 18px #d9f5821c,
+    0 0 0 1px #d9f5821a,
+    0 8px 24px #06100d70,
+    0 0 20px #d9f58224;
+  backdrop-filter: blur(4px);
+  clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 94%);
+  transform: perspective(600px) rotateX(8deg);
+  transform-origin: bottom left;
+}
+.cockpit-view .track-map::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 11px, #d9f58212 12px),
+    repeating-linear-gradient(90deg, transparent 0 11px, #d9f5820d 12px);
+  opacity: 0.8;
+  pointer-events: none;
+}
+.cockpit-view .track-map > * {
+  position: relative;
+  z-index: 1;
+}
+.cockpit-view .track-map svg {
+  filter: drop-shadow(0 0 4px #d9f582a8);
+}
+.cockpit-view .map-heading,
+.cockpit-view .map-caption {
+  color: #e6f5c8;
+}
+.cockpit-view .map-caption b {
+  color: #d9f582;
+}
 .speedometer {
   position: absolute;
   bottom: 61px;
@@ -973,6 +1014,15 @@ footer i {
   .onboard-view .map-heading,
   .onboard-view .map-caption {
     display: none;
+  }
+  .cockpit-view .track-map {
+    left: 18px;
+    bottom: 68px;
+    width: 92px;
+    padding: 7px 8px;
+  }
+  .cockpit-view .track-map svg {
+    height: 92px;
   }
   .dynamics-hud {
     top: 65px;

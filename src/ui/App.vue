@@ -204,7 +204,10 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
       <section
         ref="drivingPanel"
         class="driving-panel"
-        :class="{ 'onboard-view': diagnostics.cameraMode !== 'chase' }"
+        :class="{
+          'onboard-view': diagnostics.cameraMode !== 'chase',
+          'cockpit-view': diagnostics.cameraMode === 'cockpit',
+        }"
         aria-label="赛车自由练习"
       >
         <div ref="viewport" class="viewport" data-testid="viewport"></div>
