@@ -277,6 +277,15 @@ test("fullscreen keeps diagnostic telemetry over the running WebGPU scene", asyn
   await expect(page.getByTestId("camera-mode")).toHaveText("驾驶舱");
   await expect(page.locator(".driving-panel")).toHaveClass(/cockpit-view/);
   await expect(page.locator(".cockpit-view .track-map")).toHaveCSS("transform", /matrix3d/);
+  const [mapBox, panelBox] = await Promise.all([
+    page.locator(".cockpit-view .track-map").boundingBox(),
+    page.locator(".driving-panel").boundingBox(),
+  ]);
+  if (!mapBox || !panelBox) throw new Error("驾驶舱投影地图未显示");
+  expect(Math.abs(mapBox.x + mapBox.width / 2 - (panelBox.x + panelBox.width / 2))).toBeLessThan(
+    12,
+  );
+  expect(mapBox.y + mapBox.height / 2).toBeGreaterThan(panelBox.y + panelBox.height * 0.55);
   const speedometer = page.locator(".speedometer");
   const [telemetryBox, speedometerBox] = await Promise.all([
     telemetry.boundingBox(),

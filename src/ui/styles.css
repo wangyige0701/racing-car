@@ -441,8 +441,8 @@ kbd {
   color: #cbdab9;
 }
 .cockpit-view .track-map {
-  left: 30px;
-  bottom: 80px;
+  left: 50%;
+  bottom: clamp(176px, 22vh, 260px);
   width: 164px;
   padding: 10px 12px 8px;
   border-color: #d9f58266;
@@ -454,8 +454,8 @@ kbd {
     0 0 20px #d9f58224;
   backdrop-filter: blur(4px);
   clip-path: polygon(3% 0, 100% 0, 97% 100%, 0 94%);
-  transform: perspective(600px) rotateX(8deg);
-  transform-origin: bottom left;
+  transform: translateX(-50%) perspective(600px) rotateX(8deg);
+  transform-origin: bottom center;
 }
 .cockpit-view .track-map::before {
   content: "";
@@ -1016,8 +1016,8 @@ footer i {
     display: none;
   }
   .cockpit-view .track-map {
-    left: 18px;
-    bottom: 68px;
+    left: 50%;
+    bottom: 96px;
     width: 92px;
     padding: 7px 8px;
   }
