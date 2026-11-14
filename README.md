@@ -4,7 +4,7 @@
 
 ## 运行
 
-需要 Node.js 20.19+（22.x 需 22.12+）、pnpm 11.18.0，以及支持 WebGPU、开启硬件加速的现代浏览器。开发使用 localhost / 127.0.0.1，正式部署使用 HTTPS。
+需要 Node.js 20.19+（22.x 需 22.13+）、pnpm 11.18.0，以及支持 WebGPU、开启硬件加速的现代浏览器。开发使用 localhost / 127.0.0.1，正式部署使用 HTTPS。
 
 ```sh
 pnpm install --frozen-lockfile
