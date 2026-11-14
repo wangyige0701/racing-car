@@ -258,7 +258,7 @@ test("操作说明按需弹出，支持全屏与横屏并恢复原有暂停状�
   await page.getByLabel("左右转向灵敏度", { exact: true }).fill("1.35");
   await page.getByLabel("左右转向灵敏度", { exact: true }).blur();
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem("apex-racing-settings-v1")))
+    .poll(() => page.evaluate(() => localStorage.getItem("drive-drive-car-settings-v1")))
     .toContain('"steeringSensitivity":1.35');
   await page
     .getByRole("button", { name: "操作说明", exact: true })

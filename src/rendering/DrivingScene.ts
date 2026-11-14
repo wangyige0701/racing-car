@@ -212,11 +212,11 @@ export class DrivingScene {
       context.fillStyle = "#263a32";
       context.fillRect(0, 0, 1024, 96);
       context.fillStyle = "#d9ef93";
-      context.font = "italic 900 57px sans-serif";
-      context.fillText("APEX", 45, 68);
+      context.font = "italic 900 38px sans-serif";
+      context.fillText("DRIVE DRIVE CAR", 42, 62);
       context.fillStyle = "#edf1dc";
       context.font = "500 23px sans-serif";
-      context.fillText("MOTORSPORT  /  PROVING GROUND", 300, 59);
+      context.fillText("MOTORSPORT  /  PROVING GROUND", 420, 59);
       const map = new CanvasTexture(canvas);
       map.colorSpace = SRGBColorSpace;
       const signMaterial = new MeshStandardNodeMaterial({ map, roughness: 0.8 });

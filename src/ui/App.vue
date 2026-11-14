@@ -157,19 +157,19 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <a class="brand" href="./" aria-label="APEX 赛车首页">
-        <span class="brand-mark">A</span>
-        APEX
+      <a class="brand" href="./" aria-label="DRIVE DRIVE CAR 首页">
+        <span class="brand-mark">D</span>
+        DRIVE DRIVE CAR
         <span class="brand-divider"></span>
         <span class="brand-sub">RACING LAB</span>
       </a>
       <span class="project-label">CAR CONCEPT <b>/</b> 左舵驾驶体验</span>
-      <span class="stage-pill"><i></i> APEX / LHD</span>
+      <span class="stage-pill"><i></i> DRIVE DRIVE CAR / LHD</span>
     </header>
     <main>
       <section class="track-heading">
         <div>
-          <div class="eyebrow"><span></span> APEX / CIRCUITS</div>
+          <div class="eyebrow"><span></span> DRIVE DRIVE CAR / CIRCUITS</div>
           <h1>{{ diagnostics.trackName }} <span>自由练习</span></h1>
           <p>
             {{ diagnostics.trackLength ? (diagnostics.trackLength / 1000).toFixed(2) : "—" }} km
@@ -399,7 +399,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           </div>
 
           <div class="speedometer">
-            <div class="vehicle-name">APEX <span>/ CAR CONCEPT</span></div>
+            <div class="vehicle-name">DRIVE DRIVE CAR <span>/ CAR CONCEPT</span></div>
             <div class="speed-row">
               <div class="gear">
                 <span>GEAR</span>
@@ -722,7 +722,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
       </details>
     </main>
     <footer>
-      <span>APEX <b>/</b> BUILT FOR THE NEXT CORNER.</span>
+      <span>DRIVE DRIVE CAR <b>/</b> BUILT FOR THE NEXT CORNER.</span>
       <span>
         Car Concept · Eric Chadwick / DGG ·
         <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"

@@ -1,6 +1,6 @@
 /** 使用 SI 单位。右手坐标系：+Z 向前、+Y 向上、+X 为驾驶员左侧；正转向输入表示向右。 */
 export const VEHICLE = {
-  name: "APEX / CAR CONCEPT",
+  name: "DRIVE DRIVE CAR / CAR CONCEPT",
   mass: 1180,
   centerOfMass: { x: 0, y: -0.28, z: 0 },
   inertia: { x: 1800, y: 2100, z: 750 },

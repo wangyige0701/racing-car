@@ -1,7 +1,7 @@
 import { DEFAULT_CAMERA_SETTINGS, type CameraMode, type CameraSettings } from "../camera/config";
 import { defaultQuality, QUALITY, type Quality } from "../rendering/quality";
 
-const STORAGE_KEY = "apex-racing-settings-v1";
+const STORAGE_KEY = "drive-drive-car-settings-v1";
 
 export interface GameSettings {
   audioMuted: boolean;

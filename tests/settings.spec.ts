@@ -7,7 +7,7 @@ test("player settings persist locally and invalid stored values fall back safely
   await page.goto("/");
   const result = await page.evaluate(async (modulePath) => {
     const { loadGameSettings, saveGameSettings } = await import(modulePath);
-    localStorage.removeItem("apex-racing-settings-v1");
+    localStorage.removeItem("drive-drive-car-settings-v1");
     saveGameSettings({
       audioMuted: true,
       audioVolume: 0.6,
@@ -18,7 +18,7 @@ test("player settings persist locally and invalid stored values fall back safely
     });
     const saved = loadGameSettings();
     localStorage.setItem(
-      "apex-racing-settings-v1",
+      "drive-drive-car-settings-v1",
       JSON.stringify({ audioVolume: 4, quality: "invalid", cameraSettings: { fov: -1 } }),
     );
     return { saved, invalid: loadGameSettings() };
