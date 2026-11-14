@@ -287,10 +287,11 @@ kbd {
 .fullscreen-telemetry {
   position: absolute;
   right: 24px;
-  bottom: 48px;
+  top: 174px;
   display: flex;
   gap: 12px;
   align-items: center;
+  max-width: calc(100% - 48px);
   padding: 8px 10px;
   border: 1px solid #ffffff26;
   border-radius: 3px;
@@ -925,6 +926,13 @@ footer i {
   }
 }
 @media (max-width: 760px) {
+  .fullscreen-telemetry {
+    top: 136px;
+    right: 16px;
+    gap: 6px;
+    padding: 6px 8px;
+    font-size: 8px;
+  }
   .audio-button {
     order: 5;
     flex-basis: 100% !important;

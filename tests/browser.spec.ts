@@ -266,12 +266,27 @@ test("fullscreen keeps diagnostic telemetry over the running WebGPU scene", asyn
   await page.goto("/");
   await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "进入全屏" }).click();
-  await expect(page.getByLabel("全屏引擎信息")).toBeVisible();
+  const telemetry = page.getByLabel("全屏引擎信息");
+  await expect(telemetry).toBeVisible();
   await expect
     .poll(() =>
       page.locator(".driving-panel").evaluate((panel) => document.fullscreenElement === panel),
     )
     .toBe(true);
+  await page.keyboard.press("c");
+  await expect(page.getByTestId("camera-mode")).toHaveText("驾驶舱");
+  const speedometer = page.locator(".speedometer");
+  const [telemetryBox, speedometerBox] = await Promise.all([
+    telemetry.boundingBox(),
+    speedometer.boundingBox(),
+  ]);
+  if (!telemetryBox || !speedometerBox) throw new Error("全屏仪表信息未显示");
+  const overlaps =
+    telemetryBox.x < speedometerBox.x + speedometerBox.width &&
+    telemetryBox.x + telemetryBox.width > speedometerBox.x &&
+    telemetryBox.y < speedometerBox.y + speedometerBox.height &&
+    telemetryBox.y + telemetryBox.height > speedometerBox.y;
+  expect(overlaps).toBe(false);
   await page.keyboard.press("Escape");
   await expect
     .poll(() =>
