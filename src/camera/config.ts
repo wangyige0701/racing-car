@@ -1,4 +1,4 @@
-import { CAR_ASSET } from "../vehicle/asset";
+import { COCKPIT } from "../vehicle/cockpitLayout";
 export const CAMERA_MODES = ["chase", "cockpit", "hood", "bumper"] as const;
 export type CameraMode = (typeof CAMERA_MODES)[number];
 export const CAMERA_LABELS: Record<CameraMode, string> = {
@@ -9,7 +9,7 @@ export const CAMERA_LABELS: Record<CameraMode, string> = {
 };
 // 左座视点位于方向盘后上方，以保留完整仪表台、方向盘和前风挡（+X 为驾驶员左侧）。
 export const CAMERA_ANCHORS = {
-  cockpit: { x: CAR_ASSET.driverX, y: 0.42, z: 0.22, lookY: -1.55 },
+  cockpit: { ...COCKPIT.eye, lookY: -1.2 },
   hood: { x: 0, y: 0.28, z: 1.44, lookY: 0.14 },
   bumper: { x: 0, y: -0.12, z: 2.28, lookY: 0.02 },
 } as const;

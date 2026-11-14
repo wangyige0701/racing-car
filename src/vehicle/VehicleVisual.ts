@@ -1,20 +1,13 @@
 import {
   Box3,
-  BoxGeometry,
   CanvasTexture,
-  CylinderGeometry,
   DoubleSide,
   Group,
   Mesh,
-  MeshBasicNodeMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
-  Path,
-  PlaneGeometry,
   Quaternion,
   SRGBColorSpace,
-  Shape,
-  ShapeGeometry,
   Vector3,
 } from "three/webgpu";
 import type { Object3D } from "three/webgpu";
@@ -25,6 +18,8 @@ import { CAR_ASSET } from "./asset";
 import { VEHICLE } from "./config";
 import type { VehiclePhysics } from "./VehiclePhysics";
 import type { CameraMode } from "../camera/config";
+import { CockpitInterior } from "./CockpitInterior";
+import { COCKPIT } from "./cockpitLayout";
 
 /** 已授权的原始 GLB，具有明确动画绑定；不提供占位回退。 */
 export class VehicleVisual {
@@ -32,7 +27,10 @@ export class VehicleVisual {
   private readonly pivots: Group[] = [];
   private readonly wheels: Group[] = [];
   private readonly steering = new Group();
-  private readonly cockpitFrame = new Group();
+  private readonly cockpit: CockpitInterior;
+  private readonly exteriorInterior: Object3D[] = [];
+  private readonly exteriorSteeringPosition = new Vector3();
+  private readonly mirrors: { group: Group; original: Vector3; side: number }[] = [];
   private readonly brakeMaterials = new Set<MeshStandardMaterial>();
   private readonly glass: Object3D[] = [];
   private readonly screenCanvas = document.createElement("canvas");
@@ -64,37 +62,6 @@ export class VehicleVisual {
     model.scale.setScalar(CAR_ASSET.scale);
     model.position.set(0, CAR_ASSET.offsetY, CAR_ASSET.offsetZ);
     this.root.add(model);
-    this.cockpitFrame.name = "CockpitWindshieldFrame";
-    const frameMaterial = new MeshStandardMaterial({
-      color: "#101714",
-      metalness: 0.35,
-      roughness: 0.3,
-    });
-    const addPillar = (name: string, x: number) => {
-      const lower = new Vector3(x, -0.04, 1.07);
-      const upper = new Vector3(x, 1.08, 0.78);
-      const direction = upper.clone().sub(lower);
-      const pillar = new Mesh(
-        new CylinderGeometry(0.03, 0.044, direction.length(), 10),
-        frameMaterial,
-      );
-      pillar.name = name;
-      pillar.position.copy(lower).addScaledVector(direction, 0.5);
-      pillar.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), direction.normalize());
-      pillar.castShadow = false;
-      pillar.receiveShadow = false;
-      this.cockpitFrame.add(pillar);
-    };
-    addPillar("CockpitAPillarLeft", 0.76);
-    addPillar("CockpitAPillarRight", -0.76);
-    const header = new Mesh(new BoxGeometry(1.58, 0.048, 0.052), frameMaterial);
-    header.name = "CockpitWindshieldHeader";
-    header.position.set(0, 1.08, 0.78);
-    header.castShadow = false;
-    header.receiveShadow = false;
-    this.cockpitFrame.add(header);
-    this.cockpitFrame.visible = false;
-    this.root.add(this.cockpitFrame);
     this.root.updateMatrixWorld(true);
     const required = (name: string) => {
       const node = model.getObjectByName(name);
@@ -184,57 +151,43 @@ export class VehicleVisual {
     this.root.add(this.steering);
     this.root.updateMatrixWorld(true);
     for (const part of wheelParts) this.steering.attach(part);
+    this.exteriorSteeringPosition.copy(this.steering.position);
+    // 后视镜从门板中独立出来；车内按驾驶眼点校准，外部视角恢复原位。
+    for (const side of ["L", "R"]) {
+      const parts = ["Mirror", "MirrorColor1", "MirrorColor2"].map((suffix) =>
+        required(`BodyDoor${side}${suffix}`),
+      );
+      const group = new Group();
+      group.name = `ExteriorMirror${side}`;
+      new Box3().setFromObject(parts[0], true).getCenter(group.position);
+      this.root.add(group);
+      for (const part of parts) group.attach(part);
+      this.mirrors.push({ group, original: group.position.clone(), side: side === "L" ? 1 : -1 });
+    }
+    // 已取出原方向盘动画节点；其余概念车内饰仅供外部视角使用。
+    model.traverse((object) => {
+      if (
+        object.name.startsWith("Interior") ||
+        /^BodyDoor[LR](Color|Handle)/.test(object.name) ||
+        [
+          "BodyRoofPanel",
+          "BodyPillars",
+          "BodyWindshieldGasket",
+          "BodyDoorLWindowGasket",
+          "BodyDoorRWindowGasket",
+        ].includes(object.name)
+      )
+        this.exteriorInterior.push(object);
+    });
 
     // 以车内小型遥测屏替代源模型的静态图案。
     this.screenCanvas.width = 768;
     this.screenCanvas.height = 288;
     this.screenTexture = new CanvasTexture(this.screenCanvas);
     this.screenTexture.colorSpace = SRGBColorSpace;
-    const dashboardPosition = new Vector3(
-      CAR_ASSET.driverX,
-      0.742 * CAR_ASSET.scale + CAR_ASSET.offsetY,
-      1.222 * CAR_ASSET.scale + CAR_ASSET.offsetZ,
-    );
-    const bezelShape = new Shape();
-    bezelShape.moveTo(-0.176, -0.072);
-    bezelShape.lineTo(-0.147, -0.095);
-    bezelShape.lineTo(0.147, -0.095);
-    bezelShape.lineTo(0.176, -0.072);
-    bezelShape.lineTo(0.164, 0.075);
-    bezelShape.lineTo(-0.164, 0.075);
-    bezelShape.closePath();
-    const displayCutout = new Path();
-    displayCutout.moveTo(-0.145, 0.042);
-    displayCutout.lineTo(-0.137, 0.05);
-    displayCutout.lineTo(0.137, 0.05);
-    displayCutout.lineTo(0.145, -0.043);
-    displayCutout.lineTo(0.137, -0.051);
-    displayCutout.lineTo(-0.137, -0.051);
-    displayCutout.closePath();
-    bezelShape.holes.push(displayCutout);
-    const displayBezel = new Mesh(
-      new ShapeGeometry(bezelShape),
-      new MeshStandardMaterial({
-        color: "#111916",
-        metalness: 0.5,
-        roughness: 0.35,
-        side: DoubleSide,
-      }),
-    );
-    displayBezel.name = "LiveDashboardBezel";
-    displayBezel.position.copy(dashboardPosition);
-    displayBezel.position.z -= 0.008;
-    displayBezel.rotation.set(-0.08, Math.PI, 0);
-    this.root.add(displayBezel);
-    const screen = new Mesh(
-      new PlaneGeometry(0.276, 0.101),
-      new MeshBasicNodeMaterial({ map: this.screenTexture, toneMapped: false, transparent: true }),
-    );
-    screen.name = "LiveDashboard";
-    screen.position.copy(dashboardPosition);
-    screen.position.z -= 0.004;
-    screen.rotation.set(-0.08, Math.PI, 0);
-    this.root.add(screen);
+    this.screenTexture.anisotropy = 4;
+    this.cockpit = new CockpitInterior(this.screenTexture);
+    this.root.add(this.cockpit.root);
     this.root.userData.modelBounds = new Box3()
       .setFromObject(model, true)
       .getSize(new Vector3())
@@ -324,6 +277,27 @@ export class VehicleVisual {
     this.glass.forEach((object) => {
       object.visible = mode !== "cockpit";
     });
-    this.cockpitFrame.visible = mode === "cockpit";
+    const inside = mode === "cockpit";
+    this.exteriorInterior.forEach((object) => {
+      object.visible = !inside;
+    });
+    this.cockpit.root.visible = inside;
+    this.steering.position.copy(inside ? COCKPIT.steering : this.exteriorSteeringPosition);
+    this.steering.scale.setScalar(inside ? 1.1 : 1);
+    for (const mirror of this.mirrors) {
+      if (inside) {
+        mirror.group.position.set(
+          mirror.side * COCKPIT.mirror.x,
+          COCKPIT.mirror.y,
+          COCKPIT.mirror.z,
+        );
+        mirror.group.rotation.x = 0.25;
+        mirror.group.scale.set(0.9, 1.2, 0.75);
+      } else {
+        mirror.group.position.copy(mirror.original);
+        mirror.group.rotation.set(0, 0, 0);
+        mirror.group.scale.setScalar(1);
+      }
+    }
   }
 }

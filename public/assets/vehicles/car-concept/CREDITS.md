@@ -23,3 +23,7 @@ The resulting asset is `car.glb`; `asset.json` records its exact size, triangle 
 Khronos and 3D Commerce logos remain within the original model textures. They are trademarks of the Khronos Group, not project branding. Their use in the source model is governed by the included `Khronos-marks.txt`; no endorsement is implied.
 
 Smoke textures and synthesized audio are created by this project's code and do not use third-party recordings.
+
+## 运行时驾驶舱适配
+
+第一人称采用项目代码生成的左舵内饰、风挡、A 柱和嵌入式实时仪表，隐藏原模型中重叠的内饰与车身框架，保留并调整原方向盘动画。左右外后视镜沿用原镜面和外壳，在驾驶舱视角调整位置、俯仰及比例，外部视角恢复原变换。镜面没有实时反射。上述适配不修改 `car.glb` 文件及其校验和；生成的皮纹未使用第三方图片。结构与验证见 [左舵驾驶舱](../../../../docs/cockpit.md)。

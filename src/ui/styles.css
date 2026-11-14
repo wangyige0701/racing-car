@@ -294,26 +294,7 @@ kbd {
   overflow: hidden;
   pointer-events: none;
 }
-.windshield-glass::before {
-  content: "";
-  position: absolute;
-  inset: 5% 7% 24%;
-  background:
-    linear-gradient(118deg, transparent 18%, #e6ffff0d 31%, transparent 42%),
-    linear-gradient(70deg, transparent 57%, #d8f8ff0a 67%, transparent 76%);
-  box-shadow: inset 0 1px #efffff14;
-  clip-path: polygon(5% 0, 95% 0, 100% 100%, 0 100%);
-}
-.windshield-glass::after {
-  content: "";
-  position: absolute;
-  right: 14%;
-  bottom: 24%;
-  left: 14%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #e3ffff38 48%, transparent);
-  box-shadow: 0 0 8px #d8f8ff2e;
-}
+/* 风挡玻璃由车身坐标中的三维网格渲染；此层仅保留屏幕 HUD 的无底色语义。 */
 .fullscreen-telemetry {
   position: absolute;
   right: 24px;
@@ -470,8 +451,8 @@ kbd {
   font-weight: 400;
   color: #cbdab9;
 }
-.cockpit-view .track-map {
-  top: clamp(240px, 40vh, 420px);
+.driving-panel.cockpit-view .track-map {
+  top: calc(50% - 120px);
   left: 50%;
   bottom: auto;
   width: 108px;
@@ -1118,8 +1099,8 @@ footer i {
   .onboard-view .map-caption {
     display: none;
   }
-  .cockpit-view .track-map {
-    top: 30%;
+  .driving-panel.cockpit-view .track-map {
+    top: calc(50% - 90px);
     left: 50%;
     bottom: auto;
     width: 76px;
@@ -1700,7 +1681,11 @@ footer i {
 }
 @media (orientation: landscape) and (max-height: 600px) {
   .look-controls {
-    bottom: 96px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .driving-panel.cockpit-view .track-map {
+    top: calc(50% - 80px);
+    width: 64px;
   }
   .onboard-view .speedometer {
     bottom: auto;

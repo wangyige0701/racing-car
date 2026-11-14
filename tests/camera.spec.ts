@@ -91,7 +91,12 @@ test("cockpit settings and head motion stay bounded and can be disabled", async 
     for (let i = 0; i < 120; i++) cameras.update(car, 20, 1 / 60, world);
     expect(cameras.camera.fov).toBeCloseTo(75, 2);
     expect(cameras.camera.getWorldDirection(new Vector3()).x).toBeGreaterThan(0.5);
-    expect(cameras.camera.position.distanceTo(car.position)).toBeLessThan(0.8);
+    // 座椅位移以驾驶舱眼点为基准，不能使用旧车体原点半径限制新座椅位置。
+    const eye = CAMERA_ANCHORS.cockpit;
+    expect(cameras.camera.position.x).toBeCloseTo(eye.x);
+    expect(cameras.camera.position.y - car.position.y).toBeCloseTo(eye.y + 0.04);
+    expect(cameras.camera.position.z).toBeGreaterThanOrEqual(eye.z - 0.09);
+    expect(cameras.camera.position.z).toBeLessThan(eye.z);
     cameras.lookDirection = 0;
     cameras.setSettings({ fov: 65, height: 0, back: 0, motion: false });
     cameras.kick(1);

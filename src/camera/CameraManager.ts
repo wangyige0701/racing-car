@@ -86,8 +86,8 @@ export class CameraManager {
         if (snap) this.headZ = this.headYaw = 0;
         this.target.position.y += this.settings.height;
         this.target.position.z = Math.max(
-          0.28,
-          Math.min(0.46, this.target.position.z + this.headZ - this.settings.back),
+          anchor.z - 0.09,
+          Math.min(anchor.z + 0.105, this.target.position.z + this.headZ - this.settings.back),
         );
       }
       this.target.position.applyQuaternion(car.quaternion).add(car.position);

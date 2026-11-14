@@ -50,7 +50,7 @@ for (const viewport of [
       )
       .toBeLessThan(0.01);
     await page.screenshot({ path: info.outputPath("landscape.png") });
-    await page.locator(".mobile-actions button").last().tap();
+    await page.getByRole("button", { name: "横屏暂停菜单", exact: true }).tap();
     await expect(page.locator(".pause-overlay")).toBeVisible();
     await page.getByLabel("横屏选择赛道").selectOption("city");
     await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
