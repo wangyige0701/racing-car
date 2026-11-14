@@ -11,6 +11,21 @@ import { TRACKS, type TrackId } from "../track/catalog";
 
 const viewport = ref<HTMLDivElement>();
 const drivingPanel = ref<HTMLElement>();
+const helpDialog = ref<HTMLDialogElement>();
+const helpOpen = ref(false);
+let resumeAfterHelp = false;
+function openHelp() {
+  if (!helpDialog.value || helpDialog.value.open) return;
+  resumeAfterHelp = diagnostics.value.phase === "running";
+  if (resumeAfterHelp) application?.togglePause();
+  helpOpen.value = true;
+  helpDialog.value.showModal();
+}
+function closeHelp() {
+  helpOpen.value = false;
+  if (resumeAfterHelp && diagnostics.value.phase === "paused") application?.togglePause();
+  resumeAfterHelp = false;
+}
 const diagnostics = shallowRef(initialDiagnostics());
 const quality = ref<Quality>(defaultQuality());
 const cameraSettings = ref({ ...DEFAULT_CAMERA_SETTINGS });
@@ -243,6 +258,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
       >
         <div ref="viewport" class="viewport" data-testid="viewport"></div>
         <div class="mobile-actions">
+          <button @click="openHelp" aria-haspopup="dialog">操作说明</button>
           <button :disabled="!ready" @click="application?.cycleCamera()" aria-label="横屏切换视角">
             视角
           </button>
@@ -296,7 +312,15 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             <b>/</b>
             <span class="session-number">SESSION 01</span>
           </div>
-          <span class="prototype-label">CAR CONCEPT · 左舵</span>
+          <button
+            v-if="fullscreen"
+            class="fullscreen-help button secondary"
+            @click="openHelp"
+            aria-haspopup="dialog"
+          >
+            操作说明
+          </button>
+          <span v-else class="prototype-label">CAR CONCEPT · 左舵</span>
         </div>
 
         <template v-if="ready">
@@ -461,7 +485,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
           >
           <button class="button primary" @click="retry">重新检测 <span>↗</span></button>
         </div>
-        <div v-else-if="paused" class="pause-overlay">
+        <div v-else-if="paused && !helpOpen" class="pause-overlay">
           <div class="pause-card">
             <span class="eyebrow">TAKE A BREATHER</span>
             <h2>暂停一下，再出发。</h2>
@@ -546,6 +570,58 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
             <small>或按 ESC / 手柄 Start</small>
           </div>
         </div>
+        <dialog
+          ref="helpDialog"
+          class="driving-help"
+          aria-labelledby="driving-help-title"
+          @close="closeHelp"
+          @keydown.stop
+        >
+          <div class="help-heading">
+            <h2 id="driving-help-title">操作说明</h2>
+            <button
+              class="button secondary"
+              autofocus
+              @click="helpDialog?.close()"
+              aria-label="关闭操作说明"
+            >
+              关闭 <kbd>Esc</kbd>
+            </button>
+          </div>
+          <p>按住操作，松开释放。关闭说明后，原本正在进行的驾驶会继续。</p>
+          <dl class="help-controls">
+            <dt><kbd>W</kbd> / <kbd>↑</kbd></dt>
+            <dd>加速</dd>
+            <dt><kbd>S</kbd> / <kbd>↓</kbd></dt>
+            <dd>点按轻刹，长按渐强；停稳后倒车</dd>
+            <dt><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd></dt>
+            <dd>左右转向</dd>
+            <dt><kbd>左 Shift</kbd></dt>
+            <dd>转向时按住锁定方向，松开解除</dd>
+            <dt><kbd>Space</kbd></dt>
+            <dd>手刹；配合油门和方向持续漂移、低速原地转向</dd>
+            <dt><kbd>W</kbd> + <kbd>S</kbd></dt>
+            <dd>静止烧胎蓄力，松开制动弹射起步</dd>
+            <dt><kbd>C</kbd></dt>
+            <dd>切换视角</dd>
+            <dt><kbd>Q</kbd> / <kbd>E</kbd></dt>
+            <dd>驾驶舱向左 / 右观察，松开回正</dd>
+            <dt><kbd>R</kbd></dt>
+            <dd>从赛道起点重置车辆</dd>
+            <dt><kbd>[</kbd> / <kbd>]</kbd></dt>
+            <dd>降低 / 提高音量</dd>
+            <dt><kbd>F11</kbd></dt>
+            <dd>切换驾驶画面全屏</dd>
+            <dt><kbd>Esc</kbd></dt>
+            <dd>关闭本面板；驾驶中暂停 / 继续，全屏时退出全屏</dd>
+          </dl>
+          <h3>手柄</h3>
+          <p>
+            RT 加速 · LT 制动 / 倒车 · 左摇杆转向 · A 手刹 · X 切换视角 · Y 重置 · Start 暂停 / 继续
+          </p>
+          <h3>触控</h3>
+          <p>使用屏幕上的油门、制动和手刹按钮；横屏时滑动左侧转向区，支持多指组合操作。</p>
+        </dialog>
         <div class="scene-bottomline">
           <span>
             <span data-testid="camera-mode">{{ CAMERA_LABELS[diagnostics.cameraMode] }}</span>
@@ -593,14 +669,7 @@ function touch(control: TouchControl, event: PointerEvent, pressed: boolean) {
       </div>
 
       <section class="driving-guide" aria-label="驾驶操作">
-        <div><kbd>W</kbd><kbd>↑</kbd><span>加速</span></div>
-        <div><kbd>S</kbd><kbd>↓</kbd><span>点按轻刹 · 长按渐强 / 停稳后倒车</span></div>
-        <div><kbd>F11</kbd><span>切换全屏</span></div>
-        <div><kbd>W</kbd><kbd>S</kbd><span>静止烧胎 · 松开制动弹射</span></div>
-        <div><kbd>A</kbd><kbd>D</kbd><span>平滑转向</span></div>
-        <div><kbd>左 Shift</kbd><span>按住锁定转向 · 松开解除</span></div>
-        <div><kbd>W</kbd><kbd>Space</kbd><span>配合方向持续漂移 · 低速原地转向</span></div>
-        <span class="gamepad-guide">手柄：RT / LT 踏板 · A 手刹 · X 视角</span>
+        <button class="button secondary" @click="openHelp" aria-haspopup="dialog">操作说明</button>
         <span class="engine-status">
           <i></i>
           <span data-testid="backend">{{ diagnostics.backend }}</span>

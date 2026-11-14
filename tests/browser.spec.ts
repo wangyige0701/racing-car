@@ -224,6 +224,63 @@ test("左 Shift 在实际车辆中保持转向，释放后回正且重置清除�
   expect(errors).toEqual([]);
 });
 
+test("操作说明按需弹出，支持全屏与横屏并恢复原有暂停状态", async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/");
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  const help = page.getByRole("dialog", { name: "操作说明" });
+  await expect(help).not.toBeVisible();
+  await page
+    .getByRole("button", { name: "操作说明", exact: true })
+    .filter({ visible: true })
+    .click();
+  await expect(help).toBeVisible();
+  await expect(page.getByText("驾驶已暂停", { exact: true })).toBeVisible();
+  await expect(help.getByText("左 Shift", { exact: true })).toBeVisible();
+  await page.keyboard.press("r");
+  await page.keyboard.press("w");
+  await expect(page.getByText("驾驶已暂停", { exact: true })).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("help-desktop.jpg"),
+    type: "jpeg",
+    quality: 65,
+    scale: "css",
+  });
+  await page.keyboard.press("Escape");
+  await expect(help).not.toBeVisible();
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: "操作说明", exact: true })
+    .filter({ visible: true })
+    .click();
+  await help.getByRole("button", { name: "关闭操作说明" }).click();
+  await expect(page.getByText("驾驶已暂停", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("F11");
+  await page.locator(".fullscreen-help").click();
+  await expect(help).toBeVisible();
+  expect(await help.evaluate((dialog) => document.fullscreenElement?.contains(dialog))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(help).not.toBeVisible();
+  await page.keyboard.press("F11");
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.locator(".mobile-actions").getByRole("button", { name: "操作说明" }).click();
+  await expect(help).toBeVisible();
+  const box = await help.boundingBox();
+  expect(box!.height).toBeLessThanOrEqual(390);
+  expect(box!.width).toBeLessThanOrEqual(844);
+  await page.screenshot({
+    path: testInfo.outputPath("help-landscape.jpg"),
+    type: "jpeg",
+    quality: 65,
+    scale: "css",
+  });
+  await help.getByRole("button", { name: "关闭操作说明" }).click();
+  expect(errors).toEqual([]);
+});
+
 test("low-speed throttle and brake trigger burnout before a charged launch", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));

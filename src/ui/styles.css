@@ -747,6 +747,57 @@ kbd {
   align-items: center;
   gap: 5px;
 }
+.fullscreen-help {
+  pointer-events: auto;
+}
+.driving-help {
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 24px;
+  overflow: auto;
+  border: 1px solid #d9f58255;
+  border-radius: 10px;
+  background: #14201c;
+  color: #e7eedc;
+  box-shadow: 0 20px 80px #0009;
+}
+.driving-help::backdrop {
+  background: #07100cc9;
+}
+.help-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.help-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.driving-help h3 {
+  margin: 20px 0 8px;
+  font-size: 14px;
+}
+.driving-help p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #aebfa8;
+}
+.help-controls {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px 20px;
+  margin: 24px 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.help-controls dt {
+  white-space: nowrap;
+}
+.help-controls dd {
+  margin: 0;
+}
 .driving-guide > div > span {
   margin-left: 5px;
 }
@@ -1448,6 +1499,7 @@ footer i {
     right: auto;
   }
   .prototype-label,
+  .fullscreen-help,
   .session-number,
   .session-title > b,
   .session-info,
