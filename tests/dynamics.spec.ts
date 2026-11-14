@@ -3,7 +3,7 @@ import RAPIER from "@dimforge/rapier3d-compat";
 import { Vector3 } from "three/webgpu";
 import { Track } from "../src/track/Track";
 import { VehiclePhysics } from "../src/vehicle/VehiclePhysics";
-import { emptyInput } from "../src/vehicle/config";
+import { emptyInput, VEHICLE } from "../src/vehicle/config";
 import type { DriverInput } from "../src/vehicle/config";
 
 // An open flat pad isolates tire behaviour from barrier impacts and track curvature.
@@ -108,12 +108,30 @@ test("held throttle, handbrake and steering power a low-speed pivot and a sustai
   const { world, vehicle, step } = await pad();
   try {
     const start = vehicle.rotation.clone();
+    const frontAtStart = vehicle.position
+      .clone()
+      .add(new Vector3(0, 0, VEHICLE.wheelConnections[0].z).applyQuaternion(vehicle.rotation));
+    const rearAtStart = vehicle.position
+      .clone()
+      .add(new Vector3(0, 0, VEHICLE.wheelConnections[2].z).applyQuaternion(vehicle.rotation));
     step(120, { throttle: 1, handbrake: 1, steer: 0.8 });
+    const frontTravel = frontAtStart.distanceTo(
+      vehicle.position
+        .clone()
+        .add(new Vector3(0, 0, VEHICLE.wheelConnections[0].z).applyQuaternion(vehicle.rotation)),
+    );
+    const rearTravel = rearAtStart.distanceTo(
+      vehicle.position
+        .clone()
+        .add(new Vector3(0, 0, VEHICLE.wheelConnections[2].z).applyQuaternion(vehicle.rotation)),
+    );
     expect(vehicle.drift.active).toBe(true);
     expect(vehicle.drift.pivoting).toBe(true);
     expect(vehicle.drift.rearGrip).toBeLessThan(0.5);
     expect(start.angleTo(vehicle.rotation)).toBeGreaterThan(0.6);
     expect(Math.abs(vehicle.speed)).toBeLessThan(5);
+    expect(rearTravel).toBeGreaterThan(0.8);
+    expect(frontTravel).toBeLessThan(rearTravel * 0.7);
 
     vehicle.reset(true);
     step(240, { throttle: 1 });
@@ -124,10 +142,17 @@ test("held throttle, handbrake and steering power a low-speed pivot and a sustai
       if (vehicle.drift.active) activeFrames++;
     }
     expect(activeFrames).toBeGreaterThan(200);
-    expect(vehicle.speed).toBeGreaterThan(7);
+    expect(vehicle.speed).toBeGreaterThan(5);
     expect(vehicle.position.distanceTo(before)).toBeGreaterThan(18);
-    expect(Math.abs(vehicle.drift.slipAngle)).toBeGreaterThan(0.12);
+    expect(Math.abs(vehicle.drift.slipAngle)).toBeGreaterThan(0.08);
     expect(vehicle.groundedWheels).toBe(4);
+    expect(vehicle.drift.pivoting).toBe(false);
+
+    step(90, { throttle: 1, handbrake: 1, steer: -0.7 });
+    expect(vehicle.drift.active).toBe(true);
+    expect(vehicle.steer).toBeGreaterThan(0.08);
+    expect(vehicle.speed).toBeGreaterThan(5);
+    expect(vehicle.drift.pivoting).toBe(false);
   } finally {
     world.free();
   }

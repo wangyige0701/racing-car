@@ -42,6 +42,8 @@ export class VehiclePhysics {
   private readonly contact = new Vector3();
   private readonly angularVelocity = new Vector3();
   private readonly angularCorrection = new Vector3();
+  private readonly pivotPoint = new Vector3();
+  private readonly pivotVelocity = new Vector3();
 
   constructor(
     world: RAPIER.World,
@@ -121,7 +123,7 @@ export class VehiclePhysics {
       this.direction === 1 &&
       movement < VEHICLE.burnout.engageSpeed &&
       this.groundedWheels >= 3;
-    const handbrakePivot =
+    const lowSpeedPivotRequest =
       this.handbrake > 0.2 &&
       accelerator > 0.05 &&
       movement < VEHICLE.drift.pivotMaxSpeed &&
@@ -156,9 +158,11 @@ export class VehiclePhysics {
       this.brake,
       this.groundedWheels,
       this.burnout,
-      handbrakePivot,
+      lowSpeedPivotRequest,
     );
+    const handbrakePivot = this.drift.pivoting && this.groundedWheels >= 3;
     const handbrake = this.drift.effectiveHandbrake;
+    const heldPoweredDrift = this.handbrake > 0.2 && this.throttle > 0.1 && !this.drift.recovering;
     const countersteer =
       this.groundedWheels >= 3 &&
       this.speed > VEHICLE.drift.minSpeed &&
@@ -169,20 +173,48 @@ export class VehiclePhysics {
       (VEHICLE.maxSteer / (1 + (Math.abs(this.speed) / 15) ** 2)) *
         (1 + (countersteer ? VEHICLE.countersteerReserve * slide : 0)),
     );
+    const driftSteerLimit =
+      this.drift.control && heldPoweredDrift
+        ? Math.max(steerLimit, VEHICLE.maxSteer * VEHICLE.drift.driftSteerLimitFloor)
+        : steerLimit;
     // Keep most of the driver's steering authority during a slide, then align
     // the front axle toward the measured velocity. This is the usual arcade
     // drift model: steering chooses the arc while velocity alignment provides
     // countersteer instead of replacing the player's input.
-    const targetSteer = Math.max(
-      -VEHICLE.maxSteer,
-      Math.min(
-        VEHICLE.maxSteer,
-        -Math.max(-1, Math.min(1, input.steer)) *
-          steerLimit *
-          (1 - this.drift.control * (1 - VEHICLE.drift.driverSteerRetention)) +
-          this.drift.slipAngle * this.drift.control * VEHICLE.drift.countersteerAssist,
-      ),
-    );
+    const driverSteer =
+      -Math.max(-1, Math.min(1, input.steer)) *
+      driftSteerLimit *
+      (this.drift.control
+        ? heldPoweredDrift
+          ? VEHICLE.drift.heldDriverSteerRetention
+          : VEHICLE.drift.driverSteerRetention
+        : 1);
+    const rawCountersteer =
+      this.drift.slipAngle * this.drift.control * VEHICLE.drift.countersteerAssist;
+    const countersteerAssist = heldPoweredDrift
+      ? Math.max(
+          -driftSteerLimit * VEHICLE.drift.countersteerLimit,
+          Math.min(driftSteerLimit * VEHICLE.drift.countersteerLimit, rawCountersteer),
+        )
+      : rawCountersteer;
+    const steeredTowardDriver = driverSteer + countersteerAssist;
+    // The velocity-alignment term may ease a slide, but must not reverse a held
+    // steering command. Direction selection remains with the driver.
+    const minimumDriverSteer = driverSteer * VEHICLE.drift.driverSteerMinimum;
+    const targetSteer = handbrakePivot
+      ? -Math.max(-1, Math.min(1, input.steer)) * VEHICLE.maxSteer
+      : Math.max(
+          -VEHICLE.maxSteer,
+          Math.min(
+            VEHICLE.maxSteer,
+            heldPoweredDrift &&
+              Math.abs(input.steer) > 0.08 &&
+              (driverSteer * steeredTowardDriver < 0 ||
+                Math.abs(steeredTowardDriver) < Math.abs(minimumDriverSteer))
+              ? minimumDriverSteer
+              : steeredTowardDriver,
+          ),
+        );
     this.steer +=
       (targetSteer - this.steer) *
       (1 - Math.exp(-(countersteer ? VEHICLE.countersteerRate : VEHICLE.steeringRate) * dt));
@@ -270,6 +302,22 @@ export class VehiclePhysics {
     let contacts = 0;
     for (let i = 0; i < 4; i++) if (this.controller.wheelIsInContact(i)) contacts++;
     const stationarySpin = (this.burnout || handbrakePivot) && Math.abs(input.steer) > 0.12;
+    if (handbrakePivot && Math.abs(input.steer) > 0.12 && contacts >= 3) {
+      // A strong, finite tire force at the front axle holds it near a small
+      // circle. The rear axle retains drive and low grip, so it sweeps the
+      // wider arc without teleporting the body or overriding Rapier velocity.
+      this.pivotPoint
+        .set(0, 0, VEHICLE.wheelConnections[0].z)
+        .applyQuaternion(this.rotation)
+        .add(this.position);
+      this.body.velocityAtPoint(this.pivotPoint, this.pivotVelocity);
+      this.pivotVelocity.y = 0;
+      this.force
+        .copy(this.pivotVelocity)
+        .multiplyScalar(-VEHICLE.drift.pivotFrontAnchorDamping)
+        .clampLength(0, VEHICLE.drift.pivotFrontAnchorForce);
+      this.body.addForceAtPoint(this.force, this.pivotPoint, false);
+    }
     if (contacts >= 3 && (speed > VEHICLE.drift.minSpeed || stationarySpin)) {
       this.body.angvel(this.angularVelocity);
       const yawRate = this.angularVelocity.dot(this.up);
@@ -279,9 +327,18 @@ export class VehiclePhysics {
         : input.steer * VEHICLE.drift.targetSlip * (0.5 + this.throttle * 0.5) +
           handbrake * input.steer * 0.25;
       const requestedYaw = -input.steer * Math.min(0.85, 12 / Math.max(7, speed));
-      const targetYaw = stationarySpin
+      const desiredYaw = stationarySpin
         ? -input.steer * (this.burnout ? VEHICLE.burnout.yawRate : VEHICLE.drift.pivotYawRate)
         : requestedYaw + (this.drift.slipAngle - targetSlip) * VEHICLE.drift.slipRecovery;
+      // Slip recovery may slow an emerging spin, but it must not make a held
+      // direction command turn the chassis the other way.
+      const targetYaw =
+        !stationarySpin &&
+        heldPoweredDrift &&
+        Math.abs(input.steer) > 0.08 &&
+        desiredYaw * requestedYaw < 0
+          ? requestedYaw * VEHICLE.drift.driverYawRetention
+          : desiredYaw;
       const maxTorque = stationarySpin
         ? this.burnout
           ? VEHICLE.burnout.maxYawTorque

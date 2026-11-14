@@ -209,7 +209,37 @@ test("low-speed throttle and brake trigger burnout before a charged launch", asy
   expect(errors).toEqual([]);
 });
 
-test("held throttle, handbrake and steering stay in a controllable drift", async ({ page }) => {
+test("low-speed throttle, handbrake and steering pivot around the front axle", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto("/");
+  await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
+  const pivotHeading = Number(await page.getByTestId("map-marker").getAttribute("data-heading"));
+  await page.keyboard.down("w");
+  await page.keyboard.down("Space");
+  await page.keyboard.down("d");
+  await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "true");
+  await page.waitForTimeout(1500);
+  await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "true");
+  await expect
+    .poll(async () => {
+      const heading = Number(await page.getByTestId("map-marker").getAttribute("data-heading"));
+      return Math.abs(((heading - pivotHeading + 540) % 360) - 180);
+    })
+    .toBeGreaterThan(30);
+  await expect
+    .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
+    .toBeLessThan(18);
+  await page.keyboard.up("d");
+  await page.keyboard.up("Space");
+  await page.keyboard.up("w");
+  expect(errors).toEqual([]);
+});
+
+test("moving throttle and handbrake preserve driven wheel speed", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -218,15 +248,15 @@ test("held throttle, handbrake and steering stay in a controllable drift", async
   await page.goto("/");
   await expect(page.getByText("自由驾驶中", { exact: true })).toBeVisible();
   await page.keyboard.down("w");
+  await expect
+    .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
+    .toBeGreaterThan(35);
   await page.keyboard.down("Space");
-  await page.keyboard.down("d");
-  await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "true");
+  await expect(page.getByTestId("handbrake")).toHaveAttribute("data-value", "1");
   await page.waitForTimeout(1500);
-  await expect(page.getByTestId("drift-state")).toHaveAttribute("data-active", "true");
   await expect
     .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
     .toBeGreaterThan(12);
-  await page.keyboard.up("d");
   await page.keyboard.up("Space");
   await page.keyboard.up("w");
   expect(errors).toEqual([]);

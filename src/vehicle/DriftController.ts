@@ -38,7 +38,12 @@ export class DriftController {
       return;
     }
     const pressed = handbrake > 0.2;
-    this.pivoting = pivot && pressed && throttle > 0.1;
+    if (!pressed) this.pivoting = false;
+    // Pivot is a low-speed entry mode, not a fallback for a moving drift that
+    // later slows down. Otherwise a long corner drift unexpectedly locks its
+    // front axle and turns into an on-the-spot rotation.
+    if (pivot && !this.engaged && !this.active && !this.recovering && throttle > 0.1)
+      this.pivoting = true;
     const available = (speed > config.minSpeed || this.pivoting) && grounded >= 3;
     if (pressed && !this.wasPressed && available) {
       if (this.engaged || this.active) this.recoveryTime = 1.2;
@@ -87,7 +92,7 @@ export class DriftController {
         : 0;
     const threshold = this.active ? VEHICLE.drift.exitAngle : VEHICLE.drift.enterAngle;
     this.active =
-      this.pivoting ||
+      (this.pivoting && groundedWheels >= 3) ||
       (longitudinal > VEHICLE.drift.minSpeed &&
         groundedWheels >= 3 &&
         Math.abs(this.slipAngle) > threshold);
