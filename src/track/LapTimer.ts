@@ -1,7 +1,7 @@
 import type { Vector3 } from "three/webgpu";
 import type { Track } from "./Track";
 
-/** Ordered directional gates; time advances only through fixed simulation steps. */
+/** 有序方向门；时间只通过固定模拟步推进。 */
 export class LapTimer {
   laps = 0;
   current = 0;

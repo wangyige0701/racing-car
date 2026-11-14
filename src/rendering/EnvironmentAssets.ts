@@ -23,7 +23,7 @@ export const ENVIRONMENT_MODELS = [
 export type EnvironmentModel = (typeof ENVIRONMENT_MODELS)[number];
 export type ModelDetail = "near" | "far";
 
-/** Local, licensed assets; a failed download is reported and can be retried. */
+/** 本地授权资源；加载失败会报告错误并可重试。 */
 export class EnvironmentAssets {
   private readonly models = new Map<string, Group>();
   private readonly textures = new Map<string, Texture>();
@@ -109,7 +109,7 @@ export class EnvironmentAssets {
     });
     return meshes;
   }
-  /** Source geometry is separate from the baked instances; materials are shared. */
+  /** 源几何与烘焙实例分离；材质共享。 */
   disposeSourceGeometry(): void {
     for (const model of this.models.values())
       model.traverse((object) => {

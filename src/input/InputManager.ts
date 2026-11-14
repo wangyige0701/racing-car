@@ -16,7 +16,7 @@ const drivingKeys = new Set([
   "KeyE",
 ]);
 
-/** Keyboard, standard gamepad and touch feed the same normalized driver contract. */
+/** 键盘、标准手柄和触控共用同一份归一化驾驶输入契约。 */
 export class InputManager {
   private readonly keys = new Set<string>();
   private readonly touch = new Set<TouchControl>();
@@ -110,7 +110,7 @@ export class InputManager {
       : 0;
   }
 
-  /** Action buttons are sampled while paused too, allowing Start to resume. */
+  /** 暂停时也采样功能按键，以便通过 Start 恢复驾驶。 */
   poll(): void {
     const pad = Array.from(navigator.getGamepads?.() ?? []).find(
       (p) => p?.connected && p.mapping === "standard",

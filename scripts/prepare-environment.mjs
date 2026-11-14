@@ -36,7 +36,7 @@ for (const source of sources) {
   for (const lod of ["near", "far"]) {
     const document = await io.read(join(directory, `${source.id}_1k.gltf`));
     const scene = document.getRoot().getDefaultScene();
-    // Collections contain multiple specimens side by side. Retain one complete specimen.
+    // 集合模型会并排包含多个样本，只保留一份完整样本。
     const nodes = scene.listChildren();
     for (const node of nodes.slice(1)) node.dispose();
     nodes[0].setTranslation([0, 0, 0]);

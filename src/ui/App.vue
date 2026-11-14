@@ -60,7 +60,7 @@ async function toggleFullscreen() {
     if (document.fullscreenElement) await document.exitFullscreen();
     else await drivingPanel.value?.requestFullscreen();
   } catch {
-    // Fullscreen is optional and can be rejected by an embedded browser.
+    // 全屏为可选能力，嵌入式浏览器可能拒绝该请求。
   }
 }
 onMounted(async () => {

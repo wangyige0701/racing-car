@@ -58,6 +58,6 @@ export function saveGameSettings(settings: GameSettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch {
-    // Private browsing or a full storage quota must not prevent driving.
+    // 无痕模式或存储配额耗尽均不应阻止驾驶。
   }
 }

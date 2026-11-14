@@ -295,7 +295,7 @@ test("handbrake driving and all four views render with no GPU errors", async ({
     .poll(async () => Number(await page.getByTestId("speed").getAttribute("data-speed")))
     .toBeGreaterThan(65);
   await page.keyboard.up("w");
-  // Turn into the circuit's left bend, leaving room for the slide before the barrier.
+  // 朝赛道的左弯转向，在护栏前为侧滑预留空间。
   await page.keyboard.down("a");
   await page.keyboard.down("Space");
   await expect(page.getByTestId("handbrake")).toHaveAttribute("data-value", "1");
@@ -318,7 +318,7 @@ test("handbrake driving and all four views render with no GPU errors", async ({
   ]) {
     await page.keyboard.press("c");
     await expect(page.getByTestId("camera-mode")).toHaveText(label);
-    await page.waitForTimeout(800); // Inspect the completed 0.65 s camera transition.
+    await page.waitForTimeout(800); // 检查已完成的 0.65 秒镜头过渡。
     await page.screenshot({ path: testInfo.outputPath(`${mode}.png`), fullPage: true });
   }
   await page.keyboard.press("Escape");

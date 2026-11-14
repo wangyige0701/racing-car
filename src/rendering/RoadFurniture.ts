@@ -10,7 +10,7 @@ import {
 } from "three/webgpu";
 import type { Track } from "../track/Track";
 
-/** Corrugated steel beams, support posts and reflectors inside the collision envelope. */
+/** 碰撞包络内的波纹钢梁、支撑柱和反光板。 */
 export function guardrails(track: Track): Group {
   const profile = [
     [0.02, -0.16],

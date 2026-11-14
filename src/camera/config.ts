@@ -7,7 +7,7 @@ export const CAMERA_LABELS: Record<CameraMode, string> = {
   hood: "引擎盖",
   bumper: "保险杠",
 };
-// Left-seat eye above and behind the authored GLB steering wheel (+X is driver left).
+// 左座视点位于原始 GLB 方向盘的上方和后方（+X 为驾驶员左侧）。
 export const CAMERA_ANCHORS = {
   cockpit: { x: CAR_ASSET.driverX, y: 0.4, z: 0.34, lookY: -2.7 },
   hood: { x: 0, y: 0.28, z: 1.44, lookY: 0.14 },

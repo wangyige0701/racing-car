@@ -1,7 +1,7 @@
 import { DirectionalLight, InstancedMesh, Mesh, Texture } from "three/webgpu";
 import type { BufferGeometry, Material, Object3D } from "three/webgpu";
 
-/** Shared GLB textures/materials are released once, including PBR maps and ImageBitmaps. */
+/** 共享 GLB 纹理和材质只释放一次，包含 PBR 贴图和 ImageBitmap。 */
 export function disposeObject(root: Object3D): void {
   const geometries = new Set<BufferGeometry>();
   const materials = new Set<Material>();

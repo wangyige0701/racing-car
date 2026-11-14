@@ -17,7 +17,7 @@ function cross(timer: LapTimer, track: Track, gate: number, reverse = false, gro
 
 test("map projection keeps the marker's SVG heading aligned with vehicle travel", () => {
   expect(projectTrackMap(12, -34)).toEqual({ x: -12, y: 34 });
-  // The marker path points toward local -Y; SVG positive rotation is clockwise.
+  // 标记路径朝向局部 -Y，SVG 的正旋转方向为顺时针。
   expect(trackMapHeading(0, 1)).toBe(0);
   expect(trackMapHeading(1, 0)).toBe(270);
   expect(trackMapHeading(0, -1)).toBe(180);
@@ -97,7 +97,7 @@ for (const definition of TRACKS) {
     expect(Array.from(track.vertices).every(Number.isFinite)).toBe(true);
     expect(Math.max(...track.samples.map((s) => Math.abs(s.ty)))).toBeLessThan(0.15);
     expect(Array.from(track.indices.slice(-6))).toContain(0);
-    // Distant portions of a winding route must not overlap or share guardrails.
+    // 蜿蜒路线相距较远的路段不得重叠或共用护栏。
     let reversals = 0,
       lastSign = 0,
       clearance = Infinity;
@@ -144,7 +144,7 @@ for (const definition of TRACKS) {
         const angle = Math.atan((2 * 2.64 * Math.sin(error)) / Math.hypot(dx, dz));
         const limit = VEHICLE.maxSteer / (1 + (Math.abs(vehicle.speed) / 15) ** 2);
         input.steer = -Math.max(-1, Math.min(1, angle / limit));
-        // Look ahead for tight bends; a winding course requires braking before entry.
+        // 预判急弯；蜿蜒赛道需要在入弯前减速。
         let curvature = 0;
         for (let j = 0; j < lookahead * 2; j++) {
           const a = track.samples[(nearest + j) % track.samples.length];

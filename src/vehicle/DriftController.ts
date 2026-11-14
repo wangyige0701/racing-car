@@ -1,6 +1,6 @@
 import { VEHICLE } from "./config";
 
-/** Grip envelope only: Rapier tire impulses produce all lateral movement and yaw. */
+/** 仅管理抓地包络；所有横向位移和偏航均由 Rapier 轮胎冲量产生。 */
 export class DriftController {
   rearGrip = 1;
   slipAngle = 0;
@@ -39,9 +39,8 @@ export class DriftController {
     }
     const pressed = handbrake > 0.2;
     if (!pressed) this.pivoting = false;
-    // Pivot is a low-speed entry mode, not a fallback for a moving drift that
-    // later slows down. Otherwise a long corner drift unexpectedly locks its
-    // front axle and turns into an on-the-spot rotation.
+    // Pivot 仅是低速进入模式，而非行驶中漂移减速后的兜底模式；
+    // 否则长距离过弯漂移会意外锁住前轴，变成原地旋转。
     if (pivot && !this.engaged && !this.active && !this.recovering && throttle > 0.1)
       this.pivoting = true;
     const available = (speed > config.minSpeed || this.pivoting) && grounded >= 3;

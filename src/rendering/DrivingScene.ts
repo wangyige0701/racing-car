@@ -54,7 +54,7 @@ export class DrivingScene {
     this.vehicle = vehicle;
     this.scenery = new Environment(track, assets);
     this.scene.add(this.scenery.root, this.marks.root);
-    // Small generated sky reflection, prefiltered by WebGPU for the GLB PBR paint.
+    // 小型生成天空反射，由 WebGPU 预滤波后供 GLB PBR 车漆使用。
     const pixels = new Uint8Array(256 * 128 * 4);
     const sky = new Color("#a6c5db"),
       horizon = new Color("#edf0df"),

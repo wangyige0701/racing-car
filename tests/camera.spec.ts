@@ -42,7 +42,7 @@ test("four camera modes transition continuously and follow the rotated chassis",
     expect(cameras.camera.aspect).toBeCloseTo(390 / 844);
     cameras.cycle();
     cameras.update(car, 20, 0.1, world);
-    cameras.cycle(); // Rapid changes must start at the actual blended pose.
+    cameras.cycle(); // 快速切换必须从实际插值后的姿态开始。
     const intermediate = cameras.camera.position.clone();
     cameras.update(car, 20, 0, world);
     expect(cameras.camera.position.distanceTo(intermediate)).toBeLessThan(1e-6);

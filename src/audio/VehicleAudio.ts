@@ -1,6 +1,6 @@
 import type { VehiclePhysics } from "../vehicle/VehiclePhysics";
 
-/** Original synthesized audio. No downloaded samples or automatic playback. */
+/** 原创合成音效；不使用下载采样，也不自动播放。 */
 export class VehicleAudio {
   private context?: AudioContext;
   private master?: GainNode;
@@ -71,7 +71,7 @@ export class VehicleAudio {
     this.filter.frequency.value = 800;
     this.nodes.push(this.filter);
     this.filter.connect(this.engineGain);
-    // A four-stroke V8 firing fundamental and quieter harmonics track RPM.
+    // 四冲程 V8 的点火基频及较弱谐波随转速变化。
     for (let i = 0; i < 3; i++) {
       const oscillator = ctx.createOscillator();
       oscillator.type = i === 0 ? "sawtooth" : "triangle";

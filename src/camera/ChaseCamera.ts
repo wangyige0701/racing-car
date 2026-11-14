@@ -28,7 +28,7 @@ export class ChaseCamera {
     const blend = snap || !this.initialized ? 1 : 1 - Math.exp(-7 * Math.min(dt, 0.1));
     this.camera.position.lerp(this.desired, blend);
     this.look.lerp(this.target, blend);
-    // Clip the follow arm against actual colliders, excluding the dynamic chassis.
+    // 用真实碰撞体裁剪跟随臂，排除动态底盘自身。
     this.rayOrigin.copy(car.position);
     this.rayOrigin.y += 1.0;
     this.rayDirection.subVectors(this.camera.position, this.rayOrigin);

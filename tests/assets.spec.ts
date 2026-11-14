@@ -73,7 +73,7 @@ test("GLB binds left steering, four centred wheels, brake lights and releases al
     const result = {
       steeringX: steering.position.x,
       steeringChange: initial.angleTo(steering.quaternion),
-      // A positive physical yaw steers left: the wheel's top must move to driver left (+X).
+      // 正物理偏航对应左转：车轮顶部必须向驾驶员左侧（+X）移动。
       steeringTopDelta:
         root.position.clone().set(0, 1, 0).applyQuaternion(steering.quaternion).x - neutralTop.x,
       wheels,
@@ -86,7 +86,7 @@ test("GLB binds left steering, four centred wheels, brake lights and releases al
     result.disposed = disposed;
     return result;
   });
-  // The camera looks toward +Z: +X projects to its left, matching the source's L nodes.
+  // 相机朝向 +Z，+X 会投影在其左侧，与源模型的 L 节点一致。
   expect(result.steeringX).toBeGreaterThan(0.35);
   expect(result.steeringChange).toBeGreaterThan(0.3);
   expect(result.steeringTopDelta).toBeGreaterThan(0);
@@ -266,7 +266,7 @@ test("audio unlocks on a real gesture, follows RPM, mutes and closes on dispose"
   await expect
     .poll(() => page.evaluate(() => Reflect.get(window, "__audioProbe").gains[0].gain.value))
     .toBeLessThan(0.005);
-  // Vue unmount is also the cleanup path for leaving the game.
+  // Vue 卸载也是离开游戏时的资源清理路径。
   await page.evaluate(() => (document.querySelector("#app") as any).__vue_app__.unmount());
   await expect
     .poll(() => page.evaluate(() => Reflect.get(window, "__audioProbe").contexts[0].state))

@@ -38,8 +38,8 @@ export class PhysicsWorld {
     );
     for (const segment of track.barrierSegments()) {
       const collider = this.world.createCollider(
-        // A reduced-height physical envelope limits the side impulse's lever
-        // arm while still covering the chassis through its full travel.
+        // 降低物理包络高度可缩短侧向冲量的力臂，
+        // 同时仍覆盖底盘在完整行程中的范围。
         RAPIER.ColliderDesc.roundCuboid(0.3, 0.45, segment.length / 2, 0.1)
           .setTranslation(segment.x, segment.y + 0.45, segment.z)
           .setRotation(segment.rotation)

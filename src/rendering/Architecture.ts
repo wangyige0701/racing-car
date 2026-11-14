@@ -1,7 +1,7 @@
 import { BoxGeometry, BufferGeometry, Group, Mesh, MeshStandardNodeMaterial } from "three/webgpu";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
-/** Authored modular structures in metres; geometry is merged per material before instancing. */
+/** 以米为单位制作的模块化建筑；实例化前按材质合并几何体。 */
 export function buildingModel(
   concrete: MeshStandardNodeMaterial,
   floors: number,
@@ -27,7 +27,7 @@ export function buildingModel(
   const height = floors * 3.2 + 4;
   box(0, 0, height / 2, 0, 18, height, 20);
   box(3, 0, 0.2, 0, 20, 0.4, 22);
-  // Deep framed window bays, floor ledges, ground-floor shop glazing and columns.
+  // 深窗框凹槽、楼层挑檐、首层店铺玻璃和立柱。
   for (const side of [-1, 1]) {
     for (let floor = 0; floor <= floors; floor++) {
       const y = floor === 0 ? 1.9 : 4 + (floor - 0.5) * 3.2;
@@ -51,7 +51,7 @@ export function buildingModel(
       }
     }
     for (let i = 0; i < 6; i++) box(0, -8.8 + i * 3.52, 1.8, side * 10.38, 0.28, 3.6, 0.42);
-    // Roof parapets and facade downpipes have actual depth and cast shadows.
+    // 屋顶女儿墙和立面落水管具有真实深度并投射阴影。
     box(0, 0, height + 0.45, side * 9.8, 18, 0.9, 0.3);
     box(0, side * 8.8, height + 0.45, 0, 0.3, 0.9, 20);
     box(2, side * 8.7, height / 2, 10.45, 0.12, height, 0.12);

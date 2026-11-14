@@ -21,7 +21,7 @@ import { VEHICLE } from "./config";
 import type { VehiclePhysics } from "./VehiclePhysics";
 import type { CameraMode } from "../camera/config";
 
-/** Licensed, authored GLB with explicit animation bindings; no placeholder fallback. */
+/** 已授权的原始 GLB，具有明确动画绑定；不提供占位回退。 */
 export class VehicleVisual {
   readonly root = new Group();
   private readonly pivots: Group[] = [];
@@ -64,7 +64,7 @@ export class VehicleVisual {
       if (!node) throw new Error(`车辆资产缺少可动节点：${name}`);
       return node;
     };
-    // Validate the complete contract before reparenting shared GLB nodes.
+    // 重新挂载共享 GLB 节点前，先校验完整契约。
     const wheelNodes = CAR_ASSET.wheels.map(required);
     const wheelParts = [
       "InteriorSteeringWheel01",
@@ -120,7 +120,7 @@ export class VehicleVisual {
       const rolling = new Group();
       pivot.add(rolling);
       rolling.attach(wheel);
-      // The source is displayed with its front wheels steered 30 degrees.
+      // 源模型展示时前轮带有 30 度转向角。
       if (i < 2)
         wheel.quaternion.premultiply(
           new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 6),
@@ -129,14 +129,14 @@ export class VehicleVisual {
       wheel.scale.multiplyScalar(radiusScale);
       this.root.updateMatrixWorld(true);
       const caliper = wheel.getObjectByName(`${CAR_ASSET.wheels[i]}BrakePad`);
-      if (caliper) pivot.attach(caliper); // Calipers steer and suspend, but never roll.
+      if (caliper) pivot.attach(caliper); // 卡钳随转向和悬挂运动，但不随车轮滚动。
       const p = VEHICLE.wheelConnections[i];
       pivot.position.set(p.x, -VEHICLE.suspension.rest, p.z);
       this.pivots.push(pivot);
       this.wheels.push(rolling);
     });
 
-    // The model preparation step moves this assembly +0.42 m into the left seat.
+    // 模型预处理步骤将该总成向左座移动了 +0.42 米。
     this.steering.name = "AnimatedSteering";
     this.steering.position.set(
       CAR_ASSET.driverX,
@@ -148,7 +148,7 @@ export class VehicleVisual {
     this.root.updateMatrixWorld(true);
     for (const part of wheelParts) this.steering.attach(part);
 
-    // A small in-car telemetry display replaces the source's static graphic.
+    // 以车内小型遥测屏替代源模型的静态图案。
     this.screenCanvas.width = 512;
     this.screenCanvas.height = 192;
     this.screenTexture = new CanvasTexture(this.screenCanvas);
@@ -185,7 +185,7 @@ export class VehicleVisual {
         vehicle.previousWheelAngles[i] +
         (vehicle.wheelAngles[i] - vehicle.previousWheelAngles[i]) * alpha;
     });
-    // Remove the source's 15-degree steering presentation pose at neutral input.
+    // 在中性输入时移除源模型用于展示的 15 度方向盘姿态。
     this.steering.rotation.set(0.38, 0, -Math.PI / 12 - steer * 2.8);
     this.brakeMaterials.forEach((material) => {
       material.emissiveIntensity = vehicle.brake > 0.05 || vehicle.handbrake > 0.05 ? 4 : 0.5;
@@ -219,8 +219,8 @@ export class VehicleVisual {
   }
 
   setView(mode: CameraMode): void {
-    // Keep the real body, A-pillars, mirrors and cabin. Only omit glass in the
-    // driver's view to avoid stacked transparent surfaces obscuring the road.
+    // 保留真实车身、A 柱、后视镜和座舱；仅在驾驶员视角隐藏玻璃，
+    // 避免透明表面叠加而遮挡道路。
     this.glass.forEach((object) => {
       object.visible = mode !== "cockpit";
     });

@@ -1,4 +1,4 @@
-/** SI units. Right-handed frame: +Z forward, +Y up, +X driver left. Input +steer means right. */
+/** 使用 SI 单位。右手坐标系：+Z 向前、+Y 向上、+X 为驾驶员左侧；正转向输入表示向右。 */
 export const VEHICLE = {
   name: "APEX / CAR CONCEPT",
   mass: 1180,

@@ -1,7 +1,7 @@
 import { InstancedMesh, BoxGeometry, MeshBasicNodeMaterial, Object3D, Vector3 } from "three/webgpu";
 import type { PhysicsWorld } from "../physics/PhysicsWorld";
 
-/** Short, bounded world-space bursts at actual barrier contact points. */
+/** 在真实护栏接触点生成短暂、受限的世界空间火花。 */
 export class ContactSparks {
   readonly root = new InstancedMesh(
     new BoxGeometry(0.025, 0.025, 0.11),

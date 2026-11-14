@@ -6,7 +6,7 @@ import { VehiclePhysics } from "../src/vehicle/VehiclePhysics";
 import { emptyInput, VEHICLE } from "../src/vehicle/config";
 import type { DriverInput } from "../src/vehicle/config";
 
-// An open flat pad isolates tire behaviour from barrier impacts and track curvature.
+// 开阔平地用于隔离轮胎行为，排除护栏碰撞和赛道曲率的影响。
 async function pad() {
   await RAPIER.init();
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
@@ -206,8 +206,8 @@ test("high speed steering remains bounded and suspension settles after a landing
     expect(vehicle.drift.active).toBe(false);
     step(240);
     expect(vehicle.groundedWheels).toBe(4);
-    // Raycast suspension applies impulses before the world gravity step. Validate
-    // actual settled height over time, rather than the intermediate linvel value.
+    // 射线悬挂会在世界重力步进前施加冲量。应验证随时间收敛后的实际高度，
+    // 而非中间的线速度值。
     const heights: number[] = [];
     for (let i = 0; i < 60; i++) {
       step(1);

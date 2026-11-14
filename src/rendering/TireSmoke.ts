@@ -13,7 +13,7 @@ import type { VehiclePhysics } from "../vehicle/VehiclePhysics";
 
 const CAPACITY = 96;
 const LIFE = 1.45;
-/** Fixed particle pool: ground-contact emitters, world-space drift, no per-frame allocation. */
+/** 固定粒子池：接地发射器、世界空间漂移、逐帧零分配。 */
 export class TireSmoke {
   readonly root = new Group();
   private readonly mesh: InstancedMesh;

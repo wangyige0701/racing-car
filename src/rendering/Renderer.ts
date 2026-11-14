@@ -1,7 +1,7 @@
 import { ACESFilmicToneMapping, PCFShadowMap, WebGPURenderer } from "three/webgpu";
 import type { PerspectiveCamera, Scene, WebGPURendererParameters } from "three/webgpu";
 
-/** Three r187 installs its own fallback even when getFallback is passed as null. */
+/** Three r187 即使向 getFallback 传入 null，仍会安装自身回退逻辑。 */
 export class StrictWebGPURenderer extends WebGPURenderer {
   constructor(parameters: Omit<WebGPURendererParameters, "forceWebGL" | "getFallback"> = {}) {
     super(parameters);
@@ -28,7 +28,7 @@ export class Graphics {
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
     signal.throwIfAborted();
     if (!adapter) throw new Error("无法获取 GPUAdapter，请检查浏览器硬件加速与显卡驱动。");
-    // Request only the standard core feature when exposed; no experimental effects required.
+    // 若可用，只请求标准核心特性；不需要实验性效果。
     const coreFeature = "core-features-and-limits" as GPUFeatureName;
     const device = await adapter.requestDevice({
       requiredFeatures: adapter.features.has(coreFeature) ? [coreFeature] : [],

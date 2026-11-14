@@ -61,8 +61,7 @@ export class VehiclePhysics {
           w: 1,
         })
         .setLinearDamping(0.03)
-        // Barrier impacts must lose roll/pitch energy instead of turning a
-        // shallow glancing contact into a long airborne tumble.
+        // 护栏碰撞必须损失横滚和俯仰能量，避免轻微擦碰演变为长时间腾空翻滚。
         .setAngularDamping(1.8)
         .setCcdEnabled(true),
     );
@@ -80,7 +79,7 @@ export class VehiclePhysics {
     );
     this.controller = world.createVehicleController(this.body);
     this.controller.indexUpAxis = 1;
-    // This setter is named setIndexForwardAxis in Rapier 0.21's public API.
+    // Rapier 0.21 的公开 API 将此设置器命名为 setIndexForwardAxis。
     this.controller.setIndexForwardAxis = 2;
     VEHICLE.wheelConnections.forEach((p, i) => {
       this.controller.addWheel(
@@ -135,8 +134,7 @@ export class VehiclePhysics {
     } else if (desired !== 0) {
       if (desired !== this.direction) {
         this.brake = desired === 1 ? accelerator : pedal;
-        // A sideways-moving car may have almost zero forward speed while still
-        // travelling quickly. Only permit a direction change after it truly stops.
+        // 横移车辆的前向速度可能接近零，但整体仍在高速移动；只有真正停稳后才允许换向。
         this.directionWait = this.velocity.length() < 0.6 ? this.directionWait + dt : 0;
         if (this.directionWait >= VEHICLE.directionDelay) {
           this.direction = desired;
@@ -177,10 +175,9 @@ export class VehiclePhysics {
       this.drift.control && heldPoweredDrift
         ? Math.max(steerLimit, VEHICLE.maxSteer * VEHICLE.drift.driftSteerLimitFloor)
         : steerLimit;
-    // Keep most of the driver's steering authority during a slide, then align
-    // the front axle toward the measured velocity. This is the usual arcade
-    // drift model: steering chooses the arc while velocity alignment provides
-    // countersteer instead of replacing the player's input.
+    // 侧滑时保留大部分驾驶员转向权限，再让前轴向测得的速度方向对齐。
+    // 这是常见的街机漂移模型：转向选择弧线，速度对齐提供反打，
+    // 而不会取代玩家输入。
     const driverSteer =
       -Math.max(-1, Math.min(1, input.steer)) *
       driftSteerLimit *
@@ -198,8 +195,7 @@ export class VehiclePhysics {
         )
       : rawCountersteer;
     const steeredTowardDriver = driverSteer + countersteerAssist;
-    // The velocity-alignment term may ease a slide, but must not reverse a held
-    // steering command. Direction selection remains with the driver.
+    // 速度对齐项可以缓和侧滑，但不得反转持续的转向指令；方向仍由驾驶员决定。
     const minimumDriverSteer = driverSteer * VEHICLE.drift.driverSteerMinimum;
     const targetSteer = handbrakePivot
       ? -Math.max(-1, Math.min(1, input.steer)) * VEHICLE.maxSteer
@@ -219,8 +215,7 @@ export class VehiclePhysics {
       (targetSteer - this.steer) *
       (1 - Math.exp(-(countersteer ? VEHICLE.countersteerRate : VEHICLE.steeringRate) * dt));
     const speed = Math.abs(this.speed);
-    // A held handbrake softens rather than removes drive once the car is already
-    // sliding, so a long drift can still be powered out.
+    // 车辆开始侧滑后，持续手刹只减弱而不切断驱动力，以便保持长距离动力漂移。
     const clutchCut = handbrake * (this.drift.active ? 0.4 : 1);
     this.driveCoupling = Math.min(
       1 - clutchCut,
@@ -296,16 +291,15 @@ export class VehiclePhysics {
     this.body.addForce(this.force, false);
     if (this.throttle > 0.01 || this.brake > 0 || this.handbrake > 0) this.body.wakeUp();
     this.controller.updateVehicle(dt, RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC);
-    // Equal and opposite forces couple each axle's suspension without adding lift.
-    // No stabilizing forces are applied to an airborne axle.
+    // 等大反向力耦合每根车轴的悬挂，且不会额外产生升力。
+    // 腾空的车轴不施加稳定力。
     this.up.set(0, 1, 0).applyQuaternion(this.rotation);
     let contacts = 0;
     for (let i = 0; i < 4; i++) if (this.controller.wheelIsInContact(i)) contacts++;
     const stationarySpin = (this.burnout || handbrakePivot) && Math.abs(input.steer) > 0.12;
     if (handbrakePivot && Math.abs(input.steer) > 0.12 && contacts >= 3) {
-      // A strong, finite tire force at the front axle holds it near a small
-      // circle. The rear axle retains drive and low grip, so it sweeps the
-      // wider arc without teleporting the body or overriding Rapier velocity.
+      // 前轴施加有限且较强的轮胎力，使其保持在小半径附近；后轴保留驱动和低抓地，
+      // 因而扫出更大的弧线，且不传送车体或覆写 Rapier 速度。
       this.pivotPoint
         .set(0, 0, VEHICLE.wheelConnections[0].z)
         .applyQuaternion(this.rotation)
@@ -330,8 +324,7 @@ export class VehiclePhysics {
       const desiredYaw = stationarySpin
         ? -input.steer * (this.burnout ? VEHICLE.burnout.yawRate : VEHICLE.drift.pivotYawRate)
         : requestedYaw + (this.drift.slipAngle - targetSlip) * VEHICLE.drift.slipRecovery;
-      // Slip recovery may slow an emerging spin, but it must not make a held
-      // direction command turn the chassis the other way.
+      // 侧滑恢复可以减缓正在出现的自旋，但不能令持续方向指令把车身转向另一侧。
       const targetYaw =
         !stationarySpin &&
         heldPoweredDrift &&
@@ -413,7 +406,7 @@ export class VehiclePhysics {
     for (let i = 0; i < 4; i++) {
       this.wheelLengths[i] = this.controller.wheelSuspensionLength(i) ?? VEHICLE.suspension.rest;
       if (this.controller.wheelIsInContact(i)) this.groundedWheels++;
-      // Rear wheels slow to a lock under the handbrake; suspension remains independent.
+      // 手刹会使后轮逐渐锁止，悬挂仍保持独立。
       this.wheelAngles[i] +=
         (this.speed / VEHICLE.wheelRadius) * dt * (i >= 2 ? 1 - this.drift.effectiveHandbrake : 1);
     }

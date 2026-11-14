@@ -19,7 +19,7 @@ import { QUALITY, type Quality } from "../rendering/quality";
 import type { CameraMode, CameraSettings } from "../camera/config";
 import { loadGameSettings, saveGameSettings } from "./settings";
 
-/** Runtime state stays outside Vue; HUD snapshots are published at 10 Hz. */
+/** 运行时状态置于 Vue 之外；HUD 快照以 10 Hz 发布。 */
 export class GameApplication {
   private graphics?: Graphics;
   private scene?: DrivingScene;

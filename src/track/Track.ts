@@ -11,20 +11,20 @@ export interface TrackSample {
   tz: number;
 }
 
-/** Projects the driving plane into a north-up SVG map without mirroring left and right. */
+/** 将驾驶平面投影为北向上的 SVG 地图，且不镜像左右方向。 */
 export function projectTrackMap(x: number, z: number): { x: number; y: number } {
   return { x: -x, y: -z };
 }
 
 /**
- * SVG's marker points toward its local -Y axis. SVG rotation is clockwise, so
- * its heading is the inverse of the vehicle's +X-left / +Z-forward yaw.
+ * SVG 标记朝向自身局部 -Y 轴。SVG 的旋转为顺时针，因此其朝向
+ * 是车辆 +X 向左 / +Z 向前偏航角的反向值。
  */
 export function trackMapHeading(forwardX: number, forwardZ: number): number {
   return ((Math.atan2(-forwardX, forwardZ) * 180) / Math.PI + 360) % 360;
 }
 
-/** One centerline supplies road geometry, barriers, reset poses and the HUD map. */
+/** 一条中心线同时提供道路几何、护栏、重置姿态和 HUD 地图数据。 */
 export class Track {
   readonly samples: TrackSample[];
   readonly length: number;

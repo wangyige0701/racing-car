@@ -7,7 +7,7 @@ import { CAMERA_MODES, CAMERA_ANCHORS } from "./config";
 import type { CameraMode } from "./config";
 import { DEFAULT_CAMERA_SETTINGS, type CameraSettings } from "./config";
 
-/** One render camera; transitions use the interpolated chassis, independent of Vue. */
+/** 只使用一个渲染相机；过渡基于插值后的底盘，与 Vue 无关。 */
 export class CameraManager {
   readonly camera = new PerspectiveCamera(56, 1, 0.04, 1100);
   private readonly chase = new ChaseCamera();
@@ -101,7 +101,7 @@ export class CameraManager {
       this.fromRotation.copy(this.target.quaternion);
       this.progress = 1;
     }
-    // Keep the transition origin moving with the car so acceleration cannot leave it behind.
+    // 让过渡起点随车辆移动，避免加速时镜头起点滞后。
     if (this.initialized) this.fromPosition.add(car.position).sub(this.lastPosition);
     this.progress = Math.min(1, this.progress + Math.max(0, Math.min(dt, 0.1)) / 0.65);
     const blend = this.progress * this.progress * (3 - 2 * this.progress);
@@ -112,7 +112,7 @@ export class CameraManager {
     this.impact *= Math.exp(-10 * Math.max(0, dt));
     if (this.settings.motion)
       this.camera.rotateX(Math.sin(this.impactTime * 40) * this.impact * 0.025);
-    // Guard the actual blended camera arm, including transitions between modes.
+    // 保护实际混合后的相机臂，覆盖视角模式之间的过渡。
     this.rayOrigin.copy(car.position).add({ x: 0, y: 0.65, z: 0 });
     this.direction.subVectors(this.camera.position, this.rayOrigin);
     const length = this.direction.length();

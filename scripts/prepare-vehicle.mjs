@@ -5,8 +5,8 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, prune, weld, simplify, meshopt } from "@gltf-transform/functions";
 import { MeshoptEncoder, MeshoptSimplifier } from "meshoptimizer";
 
-// Source URL, copyright and license are recorded alongside the shipped asset.
-// Keep the download outside public/; this script never modifies the source file.
+// 源地址、版权和许可随发布资源一并记录。
+// 下载文件保留在 public/ 之外；本脚本绝不修改源文件。
 const source = process.argv[2] ?? ".asset-cache/car-concept-source.glb";
 const bytes = await readFile(source);
 const expected = "c272098089d78c5cd9fd9f24ff50ee8acf8d932c55f2d55fc10adb6c8998966b";
@@ -18,8 +18,8 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
   "meshopt.encoder": MeshoptEncoder,
 });
 const document = await io.readBinary(bytes);
-// The source is a centre-steered concept. Move the complete control assembly
-// into the left seat; preserve the authored wheel, dash, column and pedals.
+// 原始概念车采用中置转向。将整套控制总成移至左座，
+// 同时保留原有方向盘、仪表台、转向柱和踏板。
 const shiftNodes = new Set([
   "InteriorSteeringBase",
   "InteriorSteeringCylinder",
@@ -38,7 +38,7 @@ for (const node of document.getRoot().listNodes()) {
     node.setTranslation([x + 0.42, y, z]);
   }
 }
-// Ship one paint scheme, retaining node boundaries needed for driving animation.
+// 仅发布一种涂装，同时保留驾驶动画需要的节点边界。
 for (const extension of document.getRoot().listExtensionsUsed()) {
   if (extension.extensionName === "KHR_materials_variants") extension.dispose();
 }

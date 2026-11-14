@@ -42,7 +42,7 @@ export function terrainGeometry(track: Track): PlaneGeometry {
   return terrain;
 }
 
-/** Instanced scenery with distance-selected canopy detail and reusable local sign textures. */
+/** 实例化场景；树冠细节按距离选择，并复用本地标志纹理。 */
 export class Environment {
   readonly root = new Group();
   private readonly batches: {

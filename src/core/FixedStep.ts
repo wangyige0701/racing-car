@@ -1,4 +1,4 @@
-/** Fixed simulation clock. Bounded catch-up prevents a hidden tab causing a spiral. */
+/** 固定步长模拟时钟；受限补帧可防止隐藏标签页导致螺旋失控。 */
 export class FixedStep {
   readonly step = 1 / 60;
   private accumulator = 0;
